@@ -108,12 +108,12 @@ func (s *Server) handleFileWrite(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	result, err := workspace.Write(prepared.WorkspaceRoot, req.Path, req.Content, req.MaxBytes)
+	result, err := workspace.ChangeFileWithBackup(prepared.WorkspaceRoot, req.Path, req.Content, req.MaxBytes, "workspace.write")
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error(), "workspace": prepared})
 		return
 	}
-	_ = events.Append(prepared.MemoryDir, events.Event{SessionID: req.SessionID, Type: "workspace.write", Workspace: prepared.WorkspaceRoot, Payload: map[string]any{"path": result.Path, "bytes": result.Bytes}})
+	_ = events.Append(prepared.MemoryDir, events.Event{SessionID: req.SessionID, Type: "workspace.write", Workspace: prepared.WorkspaceRoot, Payload: map[string]any{"path": result.Result.Path, "bytes": result.Result.Bytes, "backup": result.Backup.ID}})
 	writeJSON(w, http.StatusOK, map[string]any{"workspace": prepared, "result": result})
 }
 
