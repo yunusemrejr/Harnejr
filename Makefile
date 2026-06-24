@@ -1,4 +1,4 @@
-.PHONY: test build daemon web clean install doctor
+.PHONY: test build daemon web clean install doctor smoke
 
 test:
 	go test ./...
@@ -17,6 +17,9 @@ install:
 
 doctor:
 	scripts/doctor.sh
+
+smoke:
+	scripts/production-smoke.sh
 
 clean:
 	rm -rf bin apps/web/dist packages/*/dist
