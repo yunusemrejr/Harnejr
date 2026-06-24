@@ -1,9 +1,9 @@
-.PHONY: test build daemon web clean
+.PHONY: test build daemon web clean install doctor
 
 test:
 	go test ./...
 
-build: daemon
+build: daemon web
 
 daemon:
 	mkdir -p bin
@@ -11,6 +11,12 @@ daemon:
 
 web:
 	pnpm --filter @harnejr/web build
+
+install:
+	bash install.sh
+
+doctor:
+	scripts/doctor.sh
 
 clean:
 	rm -rf bin apps/web/dist packages/*/dist
