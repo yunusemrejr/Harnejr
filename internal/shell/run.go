@@ -41,12 +41,8 @@ func Run(ctx context.Context, req RunRequest) (RunResult, error) {
 	if req.Workspace == "" {
 		return result, fmt.Errorf("workspace is required")
 	}
-	if req.Timeout <= 0 {
-		req.Timeout = 60 * time.Second
-	}
-	if req.MaxOutput <= 0 {
-		req.MaxOutput = 64 * 1024
-	}
+	if req.Timeout <= 0 { req.Timeout = 60 * time.Second }
+	if req.MaxOutput <= 0 { req.MaxOutput = 64 * 1024 }
 	start := time.Now()
 	runCtx, cancel := context.WithTimeout(ctx, req.Timeout)
 	defer cancel()
@@ -64,29 +60,18 @@ func Run(ctx context.Context, req RunRequest) (RunResult, error) {
 	result.Stderr = stderr.String()
 	result.Truncated = stdout.truncated || stderr.truncated
 	result.DurationMs = time.Since(start).Milliseconds()
-	if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
-		result.TimedOut = true
-		return result, nil
-	}
-	if err == nil {
-		result.ExitCode = 0
-		return result, nil
-	}
+	if errors.Is(runCtx.Err(), context.DeadlineExceeded) { result.TimedOut = true; return result, nil }
+	if err == nil { result.ExitCode = 0; return result, nil }
 	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
-		result.ExitCode = exitErr.ExitCode()
-		return result, nil
-	}
+	if errors.As(err, &exitErr) { result.ExitCode = exitErr.ExitCode(); return result, nil }
 	return result, err
 }
 
 func commandFor(ctx context.Context, req RunRequest) (*exec.Cmd, string) {
-	if bubblewrapUsable() {
+	if BubblewrapUsable() {
 		args := []string{"--die-with-parent", "--unshare-all", "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--bind", req.Workspace, req.Workspace, "--chdir", req.Workspace}
 		for _, path := range []string{"/usr", "/bin", "/lib", "/lib64", "/etc"} {
-			if _, err := os.Stat(path); err == nil {
-				args = append(args, "--ro-bind", path, path)
-			}
+			if _, err := os.Stat(path); err == nil { args = append(args, "--ro-bind", path, path) }
 		}
 		args = append(args, "bash", "-lc", req.Command)
 		return exec.CommandContext(ctx, "bwrap", args...), "bubblewrap"
@@ -99,12 +84,9 @@ func commandFor(ctx context.Context, req RunRequest) (*exec.Cmd, string) {
 var bwrapOnce sync.Once
 var bwrapOK bool
 
-func bubblewrapUsable() bool {
+func BubblewrapUsable() bool {
 	bwrapOnce.Do(func() {
-		if _, err := exec.LookPath("bwrap"); err != nil {
-			bwrapOK = false
-			return
-		}
+		if _, err := exec.LookPath("bwrap"); err != nil { bwrapOK = false; return }
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "bwrap", "--ro-bind", "/usr", "/usr", "true")
@@ -113,22 +95,11 @@ func bubblewrapUsable() bool {
 	return bwrapOK
 }
 
-type cappedBuffer struct {
-	bytes.Buffer
-	limit     int
-	truncated bool
-}
+type cappedBuffer struct { bytes.Buffer; limit int; truncated bool }
 
 func (b *cappedBuffer) Write(p []byte) (int, error) {
 	remaining := b.limit - b.Buffer.Len()
-	if remaining <= 0 {
-		b.truncated = true
-		return len(p), nil
-	}
-	if len(p) > remaining {
-		b.truncated = true
-		_, _ = b.Buffer.Write(p[:remaining])
-		return len(p), nil
-	}
+	if remaining <= 0 { b.truncated = true; return len(p), nil }
+	if len(p) > remaining { b.truncated = true; _, _ = b.Buffer.Write(p[:remaining]); return len(p), nil }
 	return b.Buffer.Write(p)
 }
