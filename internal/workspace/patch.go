@@ -17,10 +17,11 @@ type PatchRequest struct {
 }
 
 type PatchResult struct {
-	Path         string `json:"path"`
-	Changed      bool   `json:"changed"`
-	Replacements int    `json:"replacements"`
-	Bytes        int    `json:"bytes"`
+	Path         string          `json:"path"`
+	Changed      bool            `json:"changed"`
+	Replacements int             `json:"replacements"`
+	Bytes        int             `json:"bytes"`
+	Snapshot     *SnapshotResult `json:"snapshot,omitempty"`
 }
 
 func ApplyTextPatch(req PatchRequest) (PatchResult, error) {
@@ -54,6 +55,10 @@ func ApplyTextPatch(req PatchRequest) (PatchResult, error) {
 	if count == 0 {
 		return PatchResult{}, fmt.Errorf("oldText not found")
 	}
+	snapshot, err := SnapshotFile(req.Root, req.Path, "workspace.patch")
+	if err != nil {
+		return PatchResult{}, err
+	}
 	updated := strings.Replace(content, req.OldText, req.NewText, 1)
 	if err := os.WriteFile(resolved, []byte(updated), 0o644); err != nil {
 		return PatchResult{}, err
@@ -62,7 +67,7 @@ func ApplyTextPatch(req PatchRequest) (PatchResult, error) {
 	if err != nil {
 		return PatchResult{}, err
 	}
-	return PatchResult{Path: cleanRel(rootResolved, resolved), Changed: updated != content, Replacements: 1, Bytes: len(updated)}, nil
+	return PatchResult{Path: cleanRel(rootResolved, resolved), Changed: updated != content, Replacements: 1, Bytes: len(updated), Snapshot: &snapshot}, nil
 }
 
 func acquireLock(root string, target string) (func(), error) {
