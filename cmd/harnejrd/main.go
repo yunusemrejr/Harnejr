@@ -18,18 +18,20 @@ import (
 func main() {
 	listen := flag.String("listen", "127.0.0.1:8765", "HTTP listen address")
 	configDir := flag.String("config-dir", "configs", "directory containing Harnejr config JSON files")
+	webDir := flag.String("web-dir", "apps/web/dist", "directory containing built Harnejr web assets")
 	flag.Parse()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	srv := server.New(server.Options{
 		Listen:    *listen,
 		ConfigDir: *configDir,
+		WebDir:    *webDir,
 		Logger:    logger,
 	})
 
 	errCh := make(chan error, 1)
 	go func() {
-		logger.Info("starting harnejr daemon", "listen", *listen, "configDir", *configDir)
+		logger.Info("starting harnejr daemon", "listen", *listen, "configDir", *configDir, "webDir", *webDir)
 		errCh <- srv.ListenAndServe()
 	}()
 
