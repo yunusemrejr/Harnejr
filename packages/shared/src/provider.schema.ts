@@ -49,8 +49,12 @@ export const ModelProfile = z.object({
   costClass: CostClass.default("unknown")
 });
 
+const UnknownRecord = z.record(z.string(), z.unknown());
+
 export const ProviderProfile = z.object({
   id: z.string().min(1),
+  aliases: z.array(z.string().min(1)).default([]),
+  openCodeProviderId: z.string().optional(),
   displayName: z.string().min(1),
   enabled: z.boolean().default(true),
   protocol: ProviderProtocol,
@@ -60,14 +64,16 @@ export const ProviderProfile = z.object({
   endpoint: z.string().min(1),
   apiKeyEnv: z.string().optional(),
   apiKeySecretRef: z.string().optional(),
+  apiKeyFileHint: z.string().optional(),
   authMode: AuthMode.default("bearer"),
   authHeaderName: z.string().optional(),
   customHeaders: z.record(z.string(), z.string()).default({}),
   defaultModel: z.string().min(1),
   models: z.array(ModelProfile).default([]),
-  requestDefaults: z.record(z.string(), z.unknown()).default({}),
-  payloadOverrides: z.record(z.string(), z.unknown()).default({}),
-  extraBody: z.record(z.string(), z.unknown()).default({}),
+  requestDefaults: UnknownRecord.default({}),
+  payloadOverrides: UnknownRecord.default({}),
+  extraBody: UnknownRecord.default({}),
+  modelRequestDefaults: z.record(z.string(), UnknownRecord).default({}),
   reasoningAdapter: z.string().optional(),
   streamingParser: z.string().default("openai_sse"),
   timeoutMs: z.number().int().positive().default(120000),
