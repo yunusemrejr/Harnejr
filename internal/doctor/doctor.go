@@ -3,6 +3,7 @@ package doctor
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -27,20 +28,10 @@ type Report struct {
 }
 
 func Run(configDir string) Report {
-	report := Report{
-		Name:       "harnejr-doctor",
-		Timestamp:  time.Now().UTC(),
-		Status:     "ready",
-		Tools:      tools.Builtins(),
-		MCPSystems: mcp.BuiltinSystems(),
-	}
+	report := Report{Name: "harnejr-doctor", Timestamp: time.Now().UTC(), Status: "ready", Tools: tools.Builtins(), MCPSystems: mcp.BuiltinSystems()}
 	for _, name := range []string{"providers.default.json", "policy.default.json", "agents.default.json", "mcp.default.json", "skills.default.json"} {
 		path := filepath.Join(configDir, name)
-		if _, err := os.Stat(path); err != nil {
-			report.fail(name, err.Error())
-		} else {
-			report.pass(name, "found")
-		}
+		if _, err := os.Stat(path); err != nil { report.fail(name, err.Error()) } else { report.pass(name, "found") }
 	}
 	providerPath := filepath.Join(configDir, "providers.default.json")
 	registry, err := providers.LoadRegistry(providerPath)
@@ -51,24 +42,15 @@ func Run(configDir string) Report {
 	} else {
 		report.pass("provider-registry", fmt.Sprintf("%d providers validated", len(registry.Providers)))
 	}
-	if len(report.Tools) == 0 {
-		report.fail("builtin-tools", "no built-in tools registered")
+	if _, err := exec.LookPath("bwrap"); err != nil {
+		report.fail("ubuntu-sandbox", "bubblewrap bwrap not found; shell runner will report unsandboxed fallback")
 	} else {
-		report.pass("builtin-tools", "built-in tools registered")
+		report.pass("ubuntu-sandbox", "bubblewrap available")
 	}
-	if len(report.MCPSystems) == 0 {
-		report.fail("builtin-mcp", "no built-in MCP systems registered")
-	} else {
-		report.pass("builtin-mcp", "built-in MCP systems registered")
-	}
+	if len(report.Tools) == 0 { report.fail("builtin-tools", "no built-in tools registered") } else { report.pass("builtin-tools", "built-in tools registered") }
+	if len(report.MCPSystems) == 0 { report.fail("builtin-mcp", "no built-in MCP systems registered") } else { report.pass("builtin-mcp", "built-in MCP systems registered") }
 	return report
 }
 
-func (r *Report) pass(id string, message string) {
-	r.Checks = append(r.Checks, Check{ID: id, Status: "pass", Message: message})
-}
-
-func (r *Report) fail(id string, message string) {
-	r.Checks = append(r.Checks, Check{ID: id, Status: "fail", Message: message})
-	r.Status = "degraded"
-}
+func (r *Report) pass(id string, message string) { r.Checks = append(r.Checks, Check{ID: id, Status: "pass", Message: message}) }
+func (r *Report) fail(id string, message string) { r.Checks = append(r.Checks, Check{ID: id, Status: "fail", Message: message}); r.Status = "degraded" }
