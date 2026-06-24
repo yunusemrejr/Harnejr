@@ -1,11 +1,13 @@
 package doctor
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/yunusemrejr/Harnejr/internal/mcp"
+	"github.com/yunusemrejr/Harnejr/internal/providers"
 	"github.com/yunusemrejr/Harnejr/internal/tools"
 )
 
@@ -35,23 +37,38 @@ func Run(configDir string) Report {
 	for _, name := range []string{"providers.default.json", "policy.default.json", "agents.default.json", "mcp.default.json", "skills.default.json"} {
 		path := filepath.Join(configDir, name)
 		if _, err := os.Stat(path); err != nil {
-			report.Checks = append(report.Checks, Check{ID: name, Status: "fail", Message: err.Error()})
-			report.Status = "degraded"
+			report.fail(name, err.Error())
 		} else {
-			report.Checks = append(report.Checks, Check{ID: name, Status: "pass", Message: "found"})
+			report.pass(name, "found")
 		}
 	}
-	if len(report.Tools) == 0 {
-		report.Checks = append(report.Checks, Check{ID: "builtin-tools", Status: "fail", Message: "no built-in tools registered"})
-		report.Status = "degraded"
+	providerPath := filepath.Join(configDir, "providers.default.json")
+	registry, err := providers.LoadRegistry(providerPath)
+	if err != nil {
+		report.fail("provider-registry", err.Error())
+	} else if issues := providers.ValidateRegistry(registry); len(issues) > 0 {
+		report.fail("provider-registry", fmt.Sprintf("%d validation issue(s): %s", len(issues), issues[0].Message))
 	} else {
-		report.Checks = append(report.Checks, Check{ID: "builtin-tools", Status: "pass", Message: "built-in tools registered"})
+		report.pass("provider-registry", fmt.Sprintf("%d providers validated", len(registry.Providers)))
+	}
+	if len(report.Tools) == 0 {
+		report.fail("builtin-tools", "no built-in tools registered")
+	} else {
+		report.pass("builtin-tools", "built-in tools registered")
 	}
 	if len(report.MCPSystems) == 0 {
-		report.Checks = append(report.Checks, Check{ID: "builtin-mcp", Status: "fail", Message: "no built-in MCP systems registered"})
-		report.Status = "degraded"
+		report.fail("builtin-mcp", "no built-in MCP systems registered")
 	} else {
-		report.Checks = append(report.Checks, Check{ID: "builtin-mcp", Status: "pass", Message: "built-in MCP systems registered"})
+		report.pass("builtin-mcp", "built-in MCP systems registered")
 	}
 	return report
+}
+
+func (r *Report) pass(id string, message string) {
+	r.Checks = append(r.Checks, Check{ID: id, Status: "pass", Message: message})
+}
+
+func (r *Report) fail(id string, message string) {
+	r.Checks = append(r.Checks, Check{ID: id, Status: "fail", Message: message})
+	r.Status = "degraded"
 }
