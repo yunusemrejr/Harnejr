@@ -1,6 +1,9 @@
 package session
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestApplyControlPreventsGoalLoopConflict(t *testing.T) {
 	dir := t.TempDir()
