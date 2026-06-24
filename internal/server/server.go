@@ -46,6 +46,7 @@ func New(opts Options) *Server {
 	mux.HandleFunc("GET /api/prompts/user", s.handleGetUserPrompt)
 	mux.HandleFunc("GET /api/prompts/composed", s.handleGetComposedPrompt)
 	mux.HandleFunc("GET /api/providers/probe", s.handleProviderProbe)
+	mux.HandleFunc("POST /api/providers/probe", s.handleProviderProbe)
 	mux.HandleFunc("PUT /api/prompts/user", s.handleSaveUserPrompt)
 	mux.HandleFunc("POST /api/session/message", s.handleSessionMessage)
 	mux.HandleFunc("POST /api/session/export", s.handleSessionExport)
