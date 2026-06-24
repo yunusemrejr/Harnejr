@@ -6,12 +6,20 @@ on:
   pull_request:
 
 jobs:
-  go:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.22'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: corepack enable
+      - run: corepack prepare pnpm@9.15.4 --activate
       - run: go test ./...
       - run: go build ./cmd/harnejrd
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm build
+      - run: pnpm typecheck
