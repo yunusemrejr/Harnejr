@@ -1,14 +1,30 @@
 # Harnejr
 
-Harnejr is an open-source, MIT-licensed, Ubuntu-native agentic coding harness with a local web interface. It is built around a Go daemon, a TypeScript web application, editable provider profiles, workspace safety primitives, built-in local harness systems, and project-local memory.
+Harnejr is an open-source, MIT-licensed, Ubuntu-native agentic coding harness with a local web interface. It is built around a hardened Go daemon, a TypeScript web application, editable provider profiles, workspace safety primitives, built-in local harness systems, and project-local memory.
 
-Harnejr is not a prompt wrapper. The daemon owns policy, workspace preparation, persistent controls, quality checks, readiness reporting, provider contracts, event logs, and completion evidence.
+Harnejr is not a prompt wrapper. The daemon owns policy, workspace preparation, containment, rollback discipline, provider routing, persistent controls, quality checks, readiness reporting, event logs, and completion evidence.
 
 ## Project status
 
-Harnejr is in active scaffold-to-runtime development. The repository includes a runnable daemon, installable web control surface, default provider registry, policy config, workspace preparation, local memory, shell classification, policy-gated shell execution, safe workspace file APIs, path-boundary checks, built-in local harness systems, Doctor reporting, LoC quality scanning, repair planning, scoped goal/topic controls, deterministic subagent planning, completion evidence checks, provider probes, skills discovery, a session prompt console, configured model selector, command entry, and a permanent user-level system prompt editor.
+Harnejr is in active scaffold-to-runtime development. The repository includes a runnable daemon, installable web control surface, dedicated provider settings UI, local credential-file storage, default provider registry, policy config, workspace preparation, local memory, shell classification, policy-gated shell execution, safe workspace file APIs, path-boundary checks, built-in local harness systems, Doctor reporting, LoC quality scanning, repair planning, scoped goal/topic controls, deterministic subagent planning, completion evidence checks, provider probes, skills discovery, provider-backed runtime calls, streaming endpoint scaffold, configured model selector, command controls, and a permanent user-level system prompt editor.
 
-Harnejr is ready for serious local harness development and controlled workspace testing. Full autonomous provider-backed coding, provider fallback during live tasks, external MCP handshakes, subagent execution, judge execution, and sandbox/container execution are still under implementation. See `docs/production-readiness.md` for the current confirmed/not-confirmed matrix.
+Harnejr is ready for serious local harness development and controlled workspace testing. Full autonomous coding with mature multi-agent scheduling, deep MCP handshakes, advanced patch application, SQLite session state, and production-grade sandboxing are still under implementation. See `docs/production-readiness.md` for the current confirmed/not-confirmed matrix.
+
+## Core doctrine
+
+A capable coding harness is an engineering control system, not a chat box with shell access. Harnejr is designed around:
+
+- a hardened daemon as the source of truth;
+- strict workspace containment and rollback-safe mutation;
+- focused tools with narrow access and structured evidence;
+- goals decomposed into verifiable checkpoints;
+- controlled autonomy that iterates without bypassing safety;
+- model routing by task type, provider health, context need, cost, and billing path;
+- simple multi-provider wiring without silent lock-in or hidden billing mutation;
+- tight evidence-oriented prompts that forbid slop;
+- lean memory that carries forward only useful structured context.
+
+The full doctrine is in `docs/core-doctrine.md`.
 
 ## Install
 
@@ -44,8 +60,8 @@ harnejr version     # print installed metadata
 ## Design goals
 
 - Local web interface only. No TUI, Electron app, editor extension, or remote-hosted control plane.
-- Go daemon owns local execution, filesystem access, policy decisions, workspace state, and safety gates.
-- TypeScript web UI owns configuration, visibility, prompt editing, session controls, readiness views, model selection, commands, and provider editing.
+- Go daemon owns local execution, filesystem access, policy decisions, workspace state, safety gates, provider routing, ledgers, and completion gates.
+- TypeScript web UI owns configuration, visibility, provider editing, prompt editing, session controls, readiness views, model selection, and command controls.
 - Provider configuration must be explicit, editable, and billing-path aware.
 - Autonomy must remove unnecessary confirmation loops without bypassing hard safety rules.
 - Completion claims must be supported by evidence, tests, logs, quality gates, subagent plans, or independent review.
@@ -80,16 +96,17 @@ Current daemon-owned primitives include:
 
 The installed web UI includes:
 
+- a primary Session screen with a clear message composer and Send action;
+- a dedicated Providers screen for API keys, endpoints, auth mode, protocol, billing mode, default model, and model metadata;
 - daemon readiness and Doctor status;
 - built-in MCP/local system visibility;
-- configured model selection from `configs/providers.default.json`;
-- engineered command entry;
-- session prompt entry;
+- configured model selection from the editable provider registry;
+- command and goal controls separated from the chat composer;
 - local transcript view;
 - goal, topic, workspace, session ID, and yolo controls;
 - permanent additive user-level system prompt editor.
 
-Prompt submissions are currently stored into workspace memory through the daemon. Live provider execution is a roadmap item.
+Provider calls go through the daemon. API keys are saved by the daemon into local credential files, not browser storage.
 
 ## User-level system prompt
 
@@ -184,6 +201,9 @@ scripts/doctor.sh
 | `GET /api/doctor` | Return readiness checks, built-in tools, and local systems. |
 | `GET /api/tools` | List built-in harness tools. |
 | `GET /api/mcp/systems` | List built-in local harness systems. |
+| `GET /api/providers/registry` | Read editable provider registry and local credential status. |
+| `PUT /api/providers/registry` | Save edited provider registry after validation. |
+| `PUT /api/providers/secret` | Save one provider credential through the local daemon. |
 | `GET /api/providers/probe` | Static provider readiness and auth-reference probe. |
 | `POST /api/providers/probe` | Optional live provider probe when `{ "live": true }` is supplied. |
 | `GET /api/prompts/user` | Read the permanent user-level system prompt. |
@@ -214,7 +234,7 @@ Harnejr models a provider as a transport contract, not just a base URL and model
 
 ## Roadmap
 
-Near-term work: SQLite-backed session history, structured patch application and file locks, live provider execution, provider fallback during active tasks, OpenAI-compatible and Ollama adapters, command dispatcher, provider-backed subagent scheduler, provider-backed judge loop, external MCP process handshakes, provider editor, logs, policy, and export screens.
+Near-term work: SQLite-backed session history, advanced structured patch application and file locks, mature provider fallback policy, OpenAI-compatible and Ollama adapters, command dispatcher, provider-backed subagent scheduler, provider-backed judge loop, external MCP process handshakes, logs, policy, and export screens.
 
 ## License
 
