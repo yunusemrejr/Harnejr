@@ -35,9 +35,9 @@ func ProbeStatic(registry Registry) []ProbeResult {
 		result := baseProbeResult(provider)
 		result.Issues = append(result.Issues, issuesByProvider[provider.ID]...)
 		_, present := authValue(provider)
-		result.AuthPresent = provider.AuthMode == AuthNone || provider.APIKeySecretRef != "" || present
+		result.AuthPresent = provider.AuthMode == AuthNone || present
 		if !result.AuthPresent && provider.Enabled {
-			result.Issues = append(result.Issues, "auth environment variable is not set: "+provider.APIKeyEnv)
+			result.Issues = append(result.Issues, "auth not configured")
 		}
 		result.Ready = len(result.Issues) == 0
 		results = append(results, result)
@@ -66,9 +66,9 @@ func LiveProbeProvider(ctx context.Context, provider ProviderProfile) ProbeResul
 		return result
 	}
 	key, ok := authValue(provider)
-	result.AuthPresent = provider.AuthMode == AuthNone || provider.APIKeySecretRef != "" || ok
+	result.AuthPresent = provider.AuthMode == AuthNone || ok
 	if provider.AuthMode != AuthNone && !ok {
-		result.Issues = append(result.Issues, "auth environment variable is not set: "+provider.APIKeyEnv)
+		result.Issues = append(result.Issues, "auth not configured")
 		result.Ready = false
 		return result
 	}
@@ -114,6 +114,15 @@ func baseProbeResult(provider ProviderProfile) ProbeResult {
 }
 
 func authValue(provider ProviderProfile) (string, bool) {
+	if provider.APIKeySecretRef != "" {
+		bytes, err := os.ReadFile(provider.APIKeySecretRef)
+		if err == nil {
+			value := strings.TrimSpace(string(bytes))
+			if value != "" {
+				return value, true
+			}
+		}
+	}
 	if provider.APIKeyEnv == "" {
 		return "", false
 	}
