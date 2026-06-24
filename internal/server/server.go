@@ -30,16 +30,20 @@ func New(opts Options) *Server {
 	}
 
 	mux := http.NewServeMux()
-	s := &Server{
-		configDir: opts.ConfigDir,
-		logger:    logger,
-	}
+	s := &Server{configDir: opts.ConfigDir, logger: logger}
 
 	mux.HandleFunc("/", s.handleIndex)
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/config/defaults", s.handleConfigDefaults)
+	mux.HandleFunc("GET /api/doctor", s.handleDoctor)
+	mux.HandleFunc("GET /api/tools", s.handleTools)
+	mux.HandleFunc("GET /api/mcp/systems", s.handleMCPSystems)
+	mux.HandleFunc("GET /api/prompts/user", s.handleGetUserPrompt)
+	mux.HandleFunc("PUT /api/prompts/user", s.handleSaveUserPrompt)
 	mux.HandleFunc("POST /api/policy/classify-shell", s.handleClassifyShell)
 	mux.HandleFunc("POST /api/workspaces/prepare", s.handlePrepareWorkspace)
+	mux.HandleFunc("POST /api/quality/loc", s.handleLoCScan)
+	mux.HandleFunc("POST /api/healing/plan", s.handleHealingPlan)
 
 	s.httpServer = &http.Server{
 		Addr:              opts.Listen,
@@ -80,7 +84,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
     <section>
       <h1>Harnejr</h1>
       <p>The local daemon is running. The full web GUI scaffold lives under <code>apps/web</code>.</p>
-      <p>API: <code>/api/health</code>, <code>/api/config/defaults</code>, <code>/api/policy/classify-shell</code>, <code>/api/workspaces/prepare</code>.</p>
+      <p>API: <code>/api/health</code>, <code>/api/doctor</code>, <code>/api/prompts/user</code>, <code>/api/mcp/systems</code>, <code>/api/workspaces/prepare</code>.</p>
     </section>
   </main>
 </body>
