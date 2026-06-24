@@ -103,25 +103,19 @@ func Read(root string, target string, maxBytes int) (ReadResult, error) {
 	if info.IsDir() {
 		return ReadResult{}, fmt.Errorf("cannot read directory: %s", target)
 	}
-	file, err := os.Open(resolved)
+	bytes, err := os.ReadFile(resolved)
 	if err != nil {
 		return ReadResult{}, err
 	}
-	defer file.Close()
-	buffer := make([]byte, maxBytes+1)
-	n, err := file.Read(buffer)
-	if err != nil && n == 0 {
-		return ReadResult{}, err
-	}
-	truncated := n > maxBytes
+	truncated := len(bytes) > maxBytes
 	if truncated {
-		n = maxBytes
+		bytes = bytes[:maxBytes]
 	}
 	rootResolved, err := normalizeRoot(root)
 	if err != nil {
 		return ReadResult{}, err
 	}
-	return ReadResult{Path: cleanRel(rootResolved, resolved), Content: string(buffer[:n]), Bytes: n, Truncated: truncated}, nil
+	return ReadResult{Path: cleanRel(rootResolved, resolved), Content: string(bytes), Bytes: len(bytes), Truncated: truncated}, nil
 }
 
 func Write(root string, target string, content string, maxBytes int) (WriteResult, error) {
