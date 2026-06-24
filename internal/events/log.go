@@ -17,11 +17,16 @@ type Event struct {
 	Payload   map[string]any `json:"payload,omitempty"`
 }
 
-var secretPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)(sk-[A-Za-z0-9_\-]{12,})`),
-	regexp.MustCompile(`(?i)(nvapi-[A-Za-z0-9_\-]{12,})`),
-	regexp.MustCompile(`(?i)(Bearer\s+)[A-Za-z0-9_\-.]{12,}`),
-	regexp.MustCompile(`(?i)((api[-_]?key|authorization|token|secret|password)["'\s:=]+)[^"'\s,}]+`),
+type redactionRule struct {
+	pattern     *regexp.Regexp
+	replacement string
+}
+
+var redactionRules = []redactionRule{
+	{regexp.MustCompile(`(?i)sk-[A-Za-z0-9_\-]{12,}`), `[REDACTED]`},
+	{regexp.MustCompile(`(?i)nvapi-[A-Za-z0-9_\-]{12,}`), `[REDACTED]`},
+	{regexp.MustCompile(`(?i)(Bearer\s+)[A-Za-z0-9_\-.]{12,}`), `${1}[REDACTED]`},
+	{regexp.MustCompile(`(?i)((api[-_]?key|authorization|token|secret|password)["'\s:=]+)[^"'\s,}]+`), `${1}[REDACTED]`},
 }
 
 func Append(memoryDir string, event Event) error {
@@ -77,8 +82,8 @@ func RedactValue(value any) any {
 
 func RedactString(value string) string {
 	redacted := value
-	for _, pattern := range secretPatterns {
-		redacted = pattern.ReplaceAllString(redacted, "${1}[REDACTED]")
+	for _, rule := range redactionRules {
+		redacted = rule.pattern.ReplaceAllString(redacted, rule.replacement)
 	}
 	return redacted
 }
