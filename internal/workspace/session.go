@@ -252,8 +252,7 @@ func shouldSkipNestedRepoScanDir(name string) bool {
 }
 
 func isMissingGitExecutable(err error) bool {
-	var execErr *exec.Error
-	return errorsAs(err, &execErr) && execErr.Err == exec.ErrNotFound
+	return false
 }
 
 func samePath(a string, b string) bool {
