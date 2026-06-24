@@ -1,0 +1,327 @@
+{
+  "version": 1,
+  "providers": [
+    {
+      "id": "deepseek-api",
+      "displayName": "DeepSeek API",
+      "enabled": true,
+      "protocol": "openai_chat",
+      "runtime": "raw_http",
+      "billingMode": "api",
+      "baseURL": "https://api.deepseek.com/v1",
+      "endpoint": "/chat/completions",
+      "apiKeyEnv": "DEEPSEEK_API_KEY",
+      "authMode": "bearer",
+      "defaultModel": "deepseek-v4-flash",
+      "models": [
+        {
+          "id": "deepseek-v4-flash",
+          "displayName": "DeepSeek v4 Flash",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 32768,
+          "supportsTools": true,
+          "supportsReasoning": false,
+          "supportsPromptCache": true,
+          "supportsStreaming": true,
+          "costClass": "cheap"
+        },
+        {
+          "id": "deepseek-v4-pro",
+          "displayName": "DeepSeek v4 Pro",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 32768,
+          "supportsTools": true,
+          "supportsReasoning": true,
+          "supportsPromptCache": true,
+          "supportsStreaming": true,
+          "costClass": "medium"
+        }
+      ],
+      "reasoningAdapter": "deepseek",
+      "streamingParser": "openai_sse",
+      "timeoutMs": 120000,
+      "maxRetries": 2,
+      "notes": "Direct API billing. Keep separate from aggregator routes."
+    },
+    {
+      "id": "stepfun-step-plan",
+      "displayName": "StepFun Step Plan",
+      "enabled": true,
+      "protocol": "openai_chat",
+      "runtime": "raw_http",
+      "billingMode": "subscription",
+      "baseURL": "https://api.stepfun.ai/step_plan/v1",
+      "endpoint": "/chat/completions",
+      "apiKeyEnv": "STEPFUN_API_KEY",
+      "authMode": "bearer",
+      "defaultModel": "step-3.7-flash",
+      "models": [
+        {
+          "id": "step-3.7-flash",
+          "displayName": "StepFun 3.7 Flash",
+          "contextWindow": 128000,
+          "maxOutputTokens": 32768,
+          "supportsTools": true,
+          "supportsReasoning": true,
+          "supportsStreaming": true,
+          "costClass": "cheap"
+        }
+      ],
+      "reasoningAdapter": "stepfun_openai",
+      "streamingParser": "openai_sse",
+      "timeoutMs": 120000,
+      "maxRetries": 2,
+      "notes": "Preferred frequent verifier and mandatory KAT companion. Do not silently fall back to the normal StepFun /v1 billing path."
+    },
+    {
+      "id": "streamlake-kat-coding-plan",
+      "displayName": "StreamLake KAT Coding Plan",
+      "enabled": true,
+      "protocol": "openai_chat",
+      "runtime": "raw_http",
+      "billingMode": "subscription",
+      "baseURL": "https://wanqing.streamlakeapi.com/api/gateway/coding/v1",
+      "endpoint": "/chat/completions",
+      "apiKeyEnv": "STREAMLAKE_API_KEY",
+      "authMode": "bearer",
+      "defaultModel": "kat-coder-pro-v2",
+      "models": [
+        {
+          "id": "kat-coder-pro-v2",
+          "displayName": "KAT Coder Pro V2",
+          "contextWindow": 256000,
+          "maxOutputTokens": 32768,
+          "supportsTools": true,
+          "supportsReasoning": true,
+          "supportsStreaming": true,
+          "costClass": "medium"
+        }
+      ],
+      "reasoningAdapter": "none",
+      "streamingParser": "openai_sse",
+      "timeoutMs": 180000,
+      "maxRetries": 1,
+      "notes": "Coding-plan model namespace. KAT usage must schedule StepFun companion verification."
+    },
+    {
+      "id": "minimax-token-plan",
+      "displayName": "MiniMax Token Plan",
+      "enabled": true,
+      "protocol": "openai_chat",
+      "runtime": "raw_http",
+      "billingMode": "subscription",
+      "baseURL": "https://api.minimax.io/v1",
+      "endpoint": "/chat/completions",
+      "apiKeyEnv": "MINIMAX_API_KEY",
+      "authMode": "bearer",
+      "defaultModel": "MiniMax-M3",
+      "models": [
+        {
+          "id": "MiniMax-M3",
+          "displayName": "MiniMax M3",
+          "contextWindow": 1000000,
+          "maxOutputTokens": 32768,
+          "supportsTools": true,
+          "supportsVision": true,
+          "supportsReasoning": true,
+          "supportsStreaming": true,
+          "costClass": "medium"
+        }
+      ],
+      "requestDefaults": {
+        "thinking": { "type": "adaptive" },
+        "reasoning_split": true
+      },
+      "reasoningAdapter": "minimax_m3",
+      "streamingParser": "minimax_sse",
+      "timeoutMs": 180000,
+      "maxRetries": 1,
+      "notes": "Long-context analysis provider. Token Plan must stay separate from pay-as-you-go MiniMax routes."
+    },
+    {
+      "id": "kimi-code-subscription",
+      "displayName": "Kimi Code Subscription",
+      "enabled": true,
+      "protocol": "openai_chat",
+      "runtime": "raw_http",
+      "billingMode": "subscription",
+      "baseURL": "https://api.kimi.com/coding/v1",
+      "endpoint": "/chat/completions",
+      "apiKeyEnv": "KIMI_CODE_API_KEY",
+      "authMode": "bearer",
+      "defaultModel": "kimi-for-coding",
+      "models": [
+        {
+          "id": "kimi-for-coding",
+          "displayName": "Kimi for Coding",
+          "contextWindow": 256000,
+          "maxOutputTokens": 32768,
+          "supportsTools": true,
+          "supportsReasoning": true,
+          "supportsStreaming": true,
+          "costClass": "medium"
+        }
+      ],
+      "reasoningAdapter": "kimi_code",
+      "streamingParser": "openai_sse",
+      "timeoutMs": 180000,
+      "maxRetries": 1,
+      "notes": "Subscription coding path. Do not silently fall back to Moonshot pay-as-you-go."
+    },
+    {
+      "id": "nvidia-build-nim",
+      "displayName": "NVIDIA Build NIM",
+      "enabled": true,
+      "protocol": "openai_chat",
+      "runtime": "raw_http",
+      "billingMode": "api",
+      "baseURL": "https://integrate.api.nvidia.com/v1",
+      "endpoint": "/chat/completions",
+      "apiKeyEnv": "NVIDIA_API_KEY",
+      "authMode": "bearer",
+      "defaultModel": "nvidia/nemotron-3-ultra-550b-a55b",
+      "models": [
+        {
+          "id": "nvidia/nemotron-3-ultra-550b-a55b",
+          "displayName": "Nemotron 3 Ultra 550B",
+          "contextWindow": 256000,
+          "maxOutputTokens": 32768,
+          "supportsTools": true,
+          "supportsReasoning": true,
+          "supportsStreaming": true,
+          "costClass": "medium"
+        }
+      ],
+      "extraBody": {
+        "chat_template_kwargs": { "enable_thinking": true },
+        "reasoning_budget": 16384
+      },
+      "reasoningAdapter": "nvidia_nemotron",
+      "streamingParser": "nim_sse",
+      "timeoutMs": 240000,
+      "maxRetries": 1,
+      "notes": "Deep independent reviewer and goal-completion skeptic."
+    },
+    {
+      "id": "ollama-local",
+      "displayName": "Ollama Local",
+      "enabled": true,
+      "protocol": "ollama_native",
+      "runtime": "go_native",
+      "billingMode": "local",
+      "baseURL": "http://localhost:11434/api",
+      "endpoint": "/chat",
+      "authMode": "none",
+      "defaultModel": "qwen3-coder",
+      "models": [
+        {
+          "id": "qwen3-coder",
+          "displayName": "Qwen3 Coder Local",
+          "supportsReasoning": true,
+          "supportsStreaming": true,
+          "costClass": "free"
+        }
+      ],
+      "reasoningAdapter": "ollama_native",
+      "streamingParser": "ollama_jsonl",
+      "timeoutMs": 120000,
+      "maxRetries": 0,
+      "notes": "Local daemon route. Health probe must verify Ollama is running."
+    },
+    {
+      "id": "ollama-cloud-native",
+      "displayName": "Ollama Cloud Native",
+      "enabled": true,
+      "protocol": "ollama_native",
+      "runtime": "raw_http",
+      "billingMode": "subscription",
+      "baseURL": "https://ollama.com/api",
+      "endpoint": "/chat",
+      "apiKeyEnv": "OLLAMA_API_KEY",
+      "authMode": "bearer",
+      "defaultModel": "gpt-oss:120b",
+      "models": [
+        {
+          "id": "gpt-oss:120b",
+          "displayName": "GPT OSS 120B",
+          "supportsStreaming": true,
+          "costClass": "medium"
+        }
+      ],
+      "reasoningAdapter": "ollama_native",
+      "streamingParser": "ollama_jsonl",
+      "timeoutMs": 180000,
+      "maxRetries": 1,
+      "notes": "Direct cloud route. Keep separate from signed-in local-cloud Ollama."
+    },
+    {
+      "id": "xiaomi-mimo-token-plan",
+      "displayName": "Xiaomi MiMo Token Plan",
+      "enabled": true,
+      "protocol": "openai_chat",
+      "runtime": "raw_http",
+      "billingMode": "subscription",
+      "baseURL": "https://api.xiaomimimo.com/v1",
+      "endpoint": "/chat/completions",
+      "apiKeyEnv": "MIMO_API_KEY",
+      "authMode": "api_key_header",
+      "authHeaderName": "api-key",
+      "defaultModel": "mimo-v2.5-pro",
+      "models": [
+        {
+          "id": "mimo-v2.5-pro",
+          "displayName": "MiMo v2.5 Pro",
+          "contextWindow": 256000,
+          "maxOutputTokens": 32768,
+          "supportsTools": true,
+          "supportsReasoning": true,
+          "supportsStreaming": true,
+          "costClass": "medium"
+        }
+      ],
+      "reasoningAdapter": "xiaomi_mimo",
+      "streamingParser": "openai_sse",
+      "timeoutMs": 180000,
+      "maxRetries": 1,
+      "notes": "Token Plan provider. Header mode is explicit and editable."
+    },
+    {
+      "id": "openrouter-api",
+      "displayName": "OpenRouter API",
+      "enabled": true,
+      "protocol": "openai_chat",
+      "runtime": "raw_http",
+      "billingMode": "api",
+      "baseURL": "https://openrouter.ai/api/v1",
+      "endpoint": "/chat/completions",
+      "apiKeyEnv": "OPENROUTER_API_KEY",
+      "authMode": "bearer",
+      "defaultModel": "openai/gpt-5.5",
+      "models": [],
+      "reasoningAdapter": "openrouter",
+      "streamingParser": "openai_sse",
+      "timeoutMs": 180000,
+      "maxRetries": 1,
+      "notes": "Aggregator fallback and experimentation path. Not a canonical subscription integration."
+    },
+    {
+      "id": "custom-openai-compatible",
+      "displayName": "Custom OpenAI-Compatible Endpoint",
+      "enabled": false,
+      "protocol": "openai_chat",
+      "runtime": "raw_http",
+      "billingMode": "unknown",
+      "baseURL": "https://example.invalid/v1",
+      "endpoint": "/chat/completions",
+      "apiKeyEnv": "CUSTOM_LLM_API_KEY",
+      "authMode": "bearer",
+      "defaultModel": "replace-with-model-id",
+      "models": [],
+      "reasoningAdapter": "none",
+      "streamingParser": "openai_sse",
+      "timeoutMs": 120000,
+      "maxRetries": 1,
+      "notes": "Editable placeholder for local gateways, vLLM, LM Studio, LiteLLM, or corporate routes."
+    }
+  ]
+}
