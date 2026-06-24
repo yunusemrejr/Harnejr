@@ -10,6 +10,37 @@ Harnejr is in active scaffold development. The repository includes a runnable da
 
 The project is ready for serious harness development and local control-surface testing. Full autonomous coding execution, live provider calls, subagent execution, external MCP handshakes, and judge enforcement are still under implementation.
 
+## Install
+
+Single-command install on Ubuntu:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yunusemrejr/Harnejr/main/install.sh -o /tmp/harnejr-install.sh && bash /tmp/harnejr-install.sh
+```
+
+Then launch:
+
+```bash
+harnejr
+```
+
+The installer clones or updates the source checkout, runs Go tests, installs pnpm workspace dependencies, builds the web UI, builds the daemon, copies `apps/web/dist` into the install directory, copies default configs, and writes the `harnejr` launcher.
+
+Requirements: Ubuntu Linux, Git, curl, Go 1.22 or newer, Node.js 20 or newer, npm, Python 3, and pnpm. If pnpm is missing and Corepack is available, the installer attempts to activate pnpm automatically.
+
+## Lifecycle commands
+
+```bash
+harnejr             # start daemon and open the web UI
+harnejr doctor      # run daemon readiness check
+harnejr update      # pull latest main branch and reinstall
+harnejr stop        # stop daemon started by the Harnejr launcher
+harnejr uninstall   # remove installed launcher and installed Harnejr files
+harnejr version     # print installed metadata
+```
+
+`harnejr uninstall` removes the active installed launcher and install directory. It does not delete project workspaces or their `.harnejr` memory folders.
+
 ## Design goals
 
 - Local web interface only. No TUI, Electron app, editor extension, or remote-hosted control plane.
@@ -106,17 +137,6 @@ configs/                  Default provider, policy, agent, MCP, and skill config
 docs/                     Architecture and engineering notes
 scripts/                  Development helpers
 ```
-
-## Installation
-
-Requirements: Ubuntu Linux, Git, Go 1.22 or newer, Node.js 20 or newer, npm, and pnpm.
-
-```bash
-bash install.sh
-harnejr
-```
-
-The installer runs Go tests, installs pnpm workspace dependencies, builds the web UI, builds the daemon, copies `apps/web/dist` into the install directory, copies default configs, and writes the `harnejr` launcher. The launcher starts the daemon with the installed web UI directory so the browser opens the full React control surface rather than the daemon fallback page.
 
 ## Development
 
