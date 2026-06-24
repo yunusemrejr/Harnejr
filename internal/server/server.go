@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/yunusemrejr/Harnejr/internal/config"
@@ -14,12 +17,14 @@ import (
 type Options struct {
 	Listen    string
 	ConfigDir string
+	WebDir    string
 	Logger    *slog.Logger
 }
 
 type Server struct {
 	httpServer *http.Server
 	configDir  string
+	webDir     string
 	logger     *slog.Logger
 }
 
@@ -30,7 +35,7 @@ func New(opts Options) *Server {
 	}
 
 	mux := http.NewServeMux()
-	s := &Server{configDir: opts.ConfigDir, logger: logger}
+	s := &Server{configDir: opts.ConfigDir, webDir: opts.WebDir, logger: logger}
 
 	mux.HandleFunc("/", s.handleIndex)
 	mux.HandleFunc("GET /api/health", s.handleHealth)
@@ -65,6 +70,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
+	if s.serveBuiltWeb(w, r) {
+		return
+	}
 	w.Header().Set("content-type", "text/html; charset=utf-8")
 	_, _ = w.Write([]byte(`<!doctype html>
 <html lang="en">
@@ -84,13 +92,46 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 <body>
   <main>
     <section>
-      <h1>Harnejr</h1>
-      <p>The local daemon is running. The full web GUI scaffold lives under <code>apps/web</code>.</p>
-      <p>API: <code>/api/health</code>, <code>/api/doctor</code>, <code>/api/prompts/user</code>, <code>/api/prompts/composed</code>, <code>/api/control/apply</code>.</p>
+      <h1>Harnejr daemon</h1>
+      <p>The daemon is running, but built web assets were not found. Run <code>pnpm install</code>, <code>pnpm build</code>, then start the daemon with <code>--web-dir apps/web/dist</code>, or reinstall with <code>bash install.sh</code>.</p>
     </section>
   </main>
 </body>
 </html>`))
+}
+
+func (s *Server) serveBuiltWeb(w http.ResponseWriter, r *http.Request) bool {
+	if strings.TrimSpace(s.webDir) == "" {
+		return false
+	}
+	root, err := filepath.Abs(s.webDir)
+	if err != nil {
+		return false
+	}
+	index := filepath.Join(root, "index.html")
+	if _, err := os.Stat(index); err != nil {
+		return false
+	}
+	rel := strings.TrimPrefix(r.URL.Path, "/")
+	if rel == "" || strings.HasSuffix(r.URL.Path, "/") {
+		http.ServeFile(w, r, index)
+		return true
+	}
+	candidate := filepath.Join(root, filepath.Clean(rel))
+	absCandidate, err := filepath.Abs(candidate)
+	if err != nil {
+		return false
+	}
+	if absCandidate != root && !strings.HasPrefix(absCandidate, root+string(os.PathSeparator)) {
+		http.Error(w, "invalid asset path", http.StatusBadRequest)
+		return true
+	}
+	if info, err := os.Stat(absCandidate); err == nil && !info.IsDir() {
+		http.ServeFile(w, r, absCandidate)
+		return true
+	}
+	http.ServeFile(w, r, index)
+	return true
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
