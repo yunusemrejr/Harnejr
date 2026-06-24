@@ -6,15 +6,15 @@ Harnejr is not a prompt wrapper. The daemon owns policy, workspace preparation, 
 
 ## Project status
 
-Harnejr is in active scaffold development. The repository includes a runnable daemon, web control surface, default provider registry, policy config, workspace preparation, local memory, shell classification, path-boundary checks, built-in local harness systems, doctor reporting, LoC quality scanning, repair planning, scoped goal/topic controls, and a permanent user-level system prompt editor.
+Harnejr is in active scaffold development. The repository includes a runnable daemon, installable web control surface, default provider registry, policy config, workspace preparation, local memory, shell classification, path-boundary checks, built-in local harness systems, doctor reporting, LoC quality scanning, repair planning, scoped goal/topic controls, a session prompt console, configured model selector, command entry, and a permanent user-level system prompt editor.
 
-The project is ready for serious harness development and local control-surface testing. Full autonomous coding execution, provider calls, subagent execution, external MCP handshakes, and judge enforcement are still under implementation.
+The project is ready for serious harness development and local control-surface testing. Full autonomous coding execution, live provider calls, subagent execution, external MCP handshakes, and judge enforcement are still under implementation.
 
 ## Design goals
 
 - Local web interface only. No TUI, Electron app, editor extension, or remote-hosted control plane.
 - Go daemon owns local execution, filesystem access, policy decisions, workspace state, and safety gates.
-- TypeScript web UI owns configuration, visibility, prompt editing, session controls, readiness views, and provider editing.
+- TypeScript web UI owns configuration, visibility, prompt editing, session controls, readiness views, model selection, commands, and provider editing.
 - Provider configuration must be explicit, editable, and billing-path aware.
 - Autonomy must remove unnecessary confirmation loops without bypassing hard safety rules.
 - Completion claims must be supported by evidence, tests, logs, quality gates, or independent review.
@@ -29,6 +29,21 @@ The project is ready for serious harness development and local control-surface t
 | Autonomous Healer | Builds deterministic repair plans from doctor and quality findings. |
 | Workspace Memory | Prepares Git state and `.harnejr` project memory. |
 | Context Efficiency | Provides compact state packaging for efficient session continuation. |
+
+## Web control surface
+
+The installed web UI includes:
+
+- daemon readiness and Doctor status;
+- built-in MCP/local system visibility;
+- configured model selection from `configs/providers.default.json`;
+- engineered command entry;
+- session prompt entry;
+- local transcript view;
+- goal, topic, workspace, session ID, and yolo controls;
+- permanent additive user-level system prompt editor.
+
+Prompt submissions are currently stored into workspace memory through the daemon. Live provider execution is a roadmap item.
 
 ## User-level system prompt
 
@@ -94,19 +109,22 @@ scripts/                  Development helpers
 
 ## Installation
 
-Requirements: Ubuntu Linux, Git, Go 1.22 or newer, Node.js 20 or newer, and pnpm 9 or newer for web development.
+Requirements: Ubuntu Linux, Git, Go 1.22 or newer, Node.js 20 or newer, npm, and pnpm.
 
 ```bash
 bash install.sh
 harnejr
 ```
 
+The installer runs Go tests, installs pnpm workspace dependencies, builds the web UI, builds the daemon, copies `apps/web/dist` into the install directory, copies default configs, and writes the `harnejr` launcher. The launcher starts the daemon with the installed web UI directory so the browser opens the full React control surface rather than the daemon fallback page.
+
 ## Development
 
 ```bash
 go test ./...
-go run ./cmd/harnejrd --listen 127.0.0.1:8765
 pnpm install
+pnpm build
+go run ./cmd/harnejrd --listen 127.0.0.1:8765 --web-dir apps/web/dist
 pnpm --filter @harnejr/web dev
 go build -o bin/harnejrd ./cmd/harnejrd
 ```
@@ -129,6 +147,7 @@ scripts/doctor.sh
 | `GET /api/prompts/user` | Read the permanent user-level system prompt. |
 | `GET /api/prompts/composed` | Read the core prompt plus the saved user-level prompt. |
 | `PUT /api/prompts/user` | Save the permanent user-level system prompt. |
+| `POST /api/session/message` | Store a web prompt or command into workspace memory. |
 | `POST /api/control/apply` | Persist goal, topic, loop, and yolo state for a workspace session. |
 | `POST /api/policy/classify-shell` | Classify a shell command as allow, ask, or deny. |
 | `POST /api/workspaces/prepare` | Prepare a workspace by resolving Git state and local memory. |
@@ -145,7 +164,7 @@ Harnejr models a provider as a transport contract, not just a base URL and model
 
 ## Roadmap
 
-Near-term work: SQLite-backed session history, workspace edit APIs, policy-gated shell execution, provider health probes, OpenAI-compatible and Ollama adapters, command dispatcher, subagent scheduler, judge loop, external MCP process handshakes, skills discovery, provider editor, logs, policy, and export screens.
+Near-term work: SQLite-backed session history, workspace edit APIs, policy-gated shell execution, live provider execution, provider health probes, OpenAI-compatible and Ollama adapters, command dispatcher, subagent scheduler, judge loop, external MCP process handshakes, skills discovery, provider editor, logs, policy, and export screens.
 
 ## License
 
