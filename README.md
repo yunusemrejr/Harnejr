@@ -75,7 +75,7 @@ pnpm --filter @harnejr/web dev
 The `install.sh` script is intentionally conservative in this scaffold. It checks dependencies, builds the Go daemon, installs files under `~/.local/share/harnejr`, writes a launcher to `~/.local/bin/harnejr`, and does not install or expose provider keys.
 
 ```bash
-./install.sh
+bash install.sh
 harnejr
 ```
 
