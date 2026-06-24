@@ -45,6 +45,18 @@ const api = {
     });
     if (!response.ok) throw new Error("prompt save failed");
     return response.json();
+  },
+  async applyControl(payload: Record<string, unknown>): Promise<unknown> {
+    const response = await fetch("/api/control/apply", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(typeof body.error === "string" ? body.error : "control update failed");
+    }
+    return response.json();
   }
 };
 
@@ -53,6 +65,11 @@ export function App() {
   const [systems, setSystems] = useState<MCPSystem[]>([]);
   const [prompt, setPrompt] = useState<UserPrompt>({ content: "", path: "" });
   const [promptDraft, setPromptDraft] = useState("");
+  const [workspaceRoot, setWorkspaceRoot] = useState(".");
+  const [sessionId, setSessionId] = useState(() => `web-${Date.now()}`);
+  const [topic, setTopic] = useState("");
+  const [goal, setGoal] = useState("");
+  const [yolo, setYolo] = useState(false);
   const [message, setMessage] = useState("Loading daemon state");
 
   useEffect(() => {
@@ -86,6 +103,16 @@ export function App() {
       setMessage("User-level system prompt saved");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to save user prompt");
+    }
+  }
+
+  async function applyControls() {
+    setMessage("Applying session controls");
+    try {
+      await api.applyControl({ workspaceRoot, sessionId, topic, goal, yolo });
+      setMessage("Goal, topic, and mode controls saved");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to apply controls");
     }
   }
 
@@ -123,6 +150,39 @@ export function App() {
           <p>LoC controller and healing planner are daemon endpoints, not prompt reminders.</p>
           <p>Oversized source files can block completion review.</p>
         </article>
+      </section>
+
+      <section className="panel split" aria-label="session controls">
+        <div>
+          <p className="eyebrow">Session controls</p>
+          <h2>Goal, topic, and autonomy</h2>
+          <p>
+            Controls are persisted into the selected workspace memory so the session does not lose its objective or topic.
+          </p>
+        </div>
+        <div className="formGrid">
+          <label>
+            Workspace root
+            <input value={workspaceRoot} onChange={(event) => setWorkspaceRoot(event.target.value)} />
+          </label>
+          <label>
+            Session ID
+            <input value={sessionId} onChange={(event) => setSessionId(event.target.value)} />
+          </label>
+          <label>
+            Topic
+            <input value={topic} onChange={(event) => setTopic(event.target.value)} placeholder="Provider routing, web UI, policy engine" />
+          </label>
+          <label>
+            Goal
+            <textarea value={goal} onChange={(event) => setGoal(event.target.value)} rows={4} placeholder="Define the session objective." />
+          </label>
+          <label className="checkRow">
+            <input type="checkbox" checked={yolo} onChange={(event) => setYolo(event.target.checked)} />
+            Enable yolo for safe workspace work
+          </label>
+          <button type="button" onClick={applyControls}>Apply controls</button>
+        </div>
       </section>
 
       <section className="panel split" aria-label="user prompt editor">
