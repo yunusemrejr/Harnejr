@@ -26,6 +26,10 @@ Harnejr's web session command layer will support these runtime commands as deter
 | `/swarm` | Spawns five bounded subagents from available providers/models while the main agent retains control. |
 | `/export` | Writes a full JSONL session export into the active workspace, including harness actions, model usage, token accounting, errors, and verification evidence. |
 
+## Workspace lifecycle
+
+Every session prepares its project root before agent work starts. Harnejr uses an existing Git repository when one is found, initializes one only for a safe project folder, refuses broad folders, refuses parent folders that contain child repositories, and creates a local `.harnejr` Markdown memory folder for future sessions.
+
 ## Repository layout
 
 ```text
@@ -37,7 +41,7 @@ internal/config/          Local config loading and defaults
 internal/policy/          Deterministic shell/action policy
 internal/providers/       Provider contracts, capability metadata, and routing types
 internal/server/          HTTP API served by the daemon
-internal/workspace/       Workspace path resolution and escape prevention
+internal/workspace/       Workspace path resolution, Git preparation, memory, and escape prevention
 configs/                  Default provider, policy, agent, MCP, and skill config
 docs/                     Architecture and engineering notes
 scripts/                  Development helpers
