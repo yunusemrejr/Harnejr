@@ -39,6 +39,7 @@ func New(opts Options) *Server {
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/config/defaults", s.handleConfigDefaults)
 	mux.HandleFunc("POST /api/policy/classify-shell", s.handleClassifyShell)
+	mux.HandleFunc("POST /api/workspaces/prepare", s.handlePrepareWorkspace)
 
 	s.httpServer = &http.Server{
 		Addr:              opts.Listen,
@@ -79,7 +80,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
     <section>
       <h1>Harnejr</h1>
       <p>The local daemon is running. The full web GUI scaffold lives under <code>apps/web</code>.</p>
-      <p>API: <code>/api/health</code>, <code>/api/config/defaults</code>, <code>/api/policy/classify-shell</code>.</p>
+      <p>API: <code>/api/health</code>, <code>/api/config/defaults</code>, <code>/api/policy/classify-shell</code>, <code>/api/workspaces/prepare</code>.</p>
     </section>
   </main>
 </body>
