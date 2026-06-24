@@ -45,6 +45,7 @@ func FindProvider(registry Registry, id string) (ProviderProfile, bool) {
 
 func GenerateWithFallback(ctx context.Context, registry Registry, preferred []string, req GenerateRequest) GenerateResult {
 	var tried []string
+	var last GenerateResult
 	for _, provider := range generationCandidates(registry, preferred) {
 		tried = append(tried, provider.ID)
 		result := Generate(ctx, provider, req)
@@ -52,9 +53,11 @@ func GenerateWithFallback(ctx context.Context, registry Registry, preferred []st
 		if result.Error == "" && strings.TrimSpace(result.Text) != "" {
 			return result
 		}
-		if len(preferred) == 1 {
-			return result
-		}
+		last = result
+	}
+	if last.Error != "" {
+		last.Tried = tried
+		return last
 	}
 	return GenerateResult{Tried: tried, Error: "no provider candidate succeeded"}
 }
