@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "servers": [],
+  "statusLevels": [
+    "configured",
+    "command_exists",
+    "executable",
+    "env_present",
+    "starts",
+    "handshake_ok",
+    "tool_smoke_ok"
+  ],
+  "policy": {
+    "unknownRemoteMCPInAutonomousMode": "deny",
+    "writeCapableMCPRequiresPolicy": true,
+    "listToolsTimeoutMs": 5000
+  }
+}
