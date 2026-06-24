@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"time"
 
@@ -27,11 +28,12 @@ type RunResult struct {
 	TimedOut   bool            `json:"timedOut"`
 	Truncated  bool            `json:"truncated"`
 	DurationMs int64           `json:"durationMs"`
+	Sandbox    string          `json:"sandbox"`
 }
 
 func Run(ctx context.Context, req RunRequest) (RunResult, error) {
 	decision := policy.ClassifyShell(req.Command)
-	result := RunResult{Decision: decision, ExitCode: -1}
+	result := RunResult{Decision: decision, ExitCode: -1, Sandbox: "not-run"}
 	if decision.Action != policy.ActionAllow {
 		return result, nil
 	}
@@ -47,8 +49,8 @@ func Run(ctx context.Context, req RunRequest) (RunResult, error) {
 	start := time.Now()
 	runCtx, cancel := context.WithTimeout(ctx, req.Timeout)
 	defer cancel()
-	cmd := exec.CommandContext(runCtx, "bash", "-lc", req.Command)
-	cmd.Dir = req.Workspace
+	cmd, mode := commandFor(runCtx, req)
+	result.Sandbox = mode
 	var stdout cappedBuffer
 	var stderr cappedBuffer
 	stdout.limit = req.MaxOutput
@@ -75,6 +77,22 @@ func Run(ctx context.Context, req RunRequest) (RunResult, error) {
 		return result, nil
 	}
 	return result, err
+}
+
+func commandFor(ctx context.Context, req RunRequest) (*exec.Cmd, string) {
+	if _, err := exec.LookPath("bwrap"); err == nil {
+		args := []string{"--die-with-parent", "--unshare-all", "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--bind", req.Workspace, req.Workspace, "--chdir", req.Workspace}
+		for _, path := range []string{"/usr", "/bin", "/lib", "/lib64", "/etc"} {
+			if _, err := os.Stat(path); err == nil {
+				args = append(args, "--ro-bind", path, path)
+			}
+		}
+		args = append(args, "bash", "-lc", req.Command)
+		return exec.CommandContext(ctx, "bwrap", args...), "bubblewrap"
+	}
+	cmd := exec.CommandContext(ctx, "bash", "-lc", req.Command)
+	cmd.Dir = req.Workspace
+	return cmd, "unsandboxed-no-bwrap"
 }
 
 type cappedBuffer struct {
