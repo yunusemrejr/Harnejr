@@ -2,7 +2,6 @@ package workspace
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,10 +12,10 @@ import (
 )
 
 const (
-	GitExisting       = "existing"
-	GitInitialized    = "initialized"
-	GitSkippedBroad   = "skipped_broad_path"
-	GitSkippedNested  = "skipped_nested_repos"
+	GitExisting        = "existing"
+	GitInitialized     = "initialized"
+	GitSkippedBroad    = "skipped_broad_path"
+	GitSkippedNested   = "skipped_nested_repos"
 	GitInitUnavailable = "git_unavailable"
 )
 
@@ -69,13 +68,13 @@ func PrepareSessionWorkspace(ctx context.Context, opts PrepareOptions) (PrepareR
 	}
 	if len(nested) > 0 {
 		result.GitStatus = GitSkippedNested
-		result.GitMessage = "workspace contains child git repositories; choose a specific child project instead of initializing a parent repo"
+		result.GitMessage = "workspace contains child git repositories; choose a specific child project instead"
 		result.NestedGitRoots = nested
 		return result, nil
 	}
 
 	if err := InitGitRepository(ctx, root); err != nil {
-		if errors.Is(err, exec.ErrNotFound) {
+		if isMissingGitExecutable(err) {
 			result.GitStatus = GitInitUnavailable
 			result.GitMessage = "git executable was not found; workspace memory was still created"
 			return prepareMemory(result, opts)
@@ -120,15 +119,15 @@ func FindNestedGitRepos(root string) ([]string, error) {
 		if path == root {
 			return nil
 		}
-		if entry.IsDir() && shouldSkipNestedRepoScanDir(name) {
-			return filepath.SkipDir
-		}
 		if name == ".git" {
-			parent := filepath.Dir(path)
-			nested = append(nested, parent)
+			nested = append(nested, filepath.Dir(path))
 			if entry.IsDir() {
 				return filepath.SkipDir
 			}
+			return nil
+		}
+		if entry.IsDir() && shouldSkipNestedRepoScanDir(name) {
+			return filepath.SkipDir
 		}
 		return nil
 	})
@@ -144,10 +143,11 @@ func InitGitRepository(ctx context.Context, root string) error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.CommandContext(ctx, "git", "-C", root, "init")
+	args := []string{"-C", root, "init"}
+	cmd := exec.CommandContext(ctx, "git", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("git init failed in %s: %w: %s", root, err, strings.TrimSpace(string(output)))
+		return fmt.Errorf("local git initialization failed in %s: %w: %s", root, err, strings.TrimSpace(string(output)))
 	}
 	return nil
 }
@@ -160,15 +160,15 @@ func IsBroadWorkspaceRoot(root string) (bool, string) {
 func isBroadWorkspaceRootWithHome(root string, home string) (bool, string) {
 	clean := filepath.Clean(root)
 	if clean == string(os.PathSeparator) {
-		return true, "refusing to initialize git or memory at filesystem root"
+		return true, "refusing broad filesystem root"
 	}
 	protectedAbsolute := map[string]string{
-		"/home": "refusing to initialize git or memory at /home",
-		"/Users": "refusing to initialize git or memory at /Users",
-		"/etc":  "refusing to initialize git or memory inside system configuration root",
-		"/usr":  "refusing to initialize git or memory inside system package root",
-		"/var":  "refusing to initialize git or memory inside system state root",
-		"/tmp":  "refusing to initialize git or memory at the whole temporary directory",
+		"/home": "refusing broad /home directory",
+		"/Users": "refusing broad /Users directory",
+		"/etc":  "refusing system configuration root",
+		"/usr":  "refusing system package root",
+		"/var":  "refusing system state root",
+		"/tmp":  "refusing whole temporary directory",
 	}
 	if reason, ok := protectedAbsolute[clean]; ok {
 		return true, reason
@@ -178,12 +178,12 @@ func isBroadWorkspaceRootWithHome(root string, home string) (bool, string) {
 	}
 	home = filepath.Clean(home)
 	if samePath(clean, home) {
-		return true, "refusing to initialize git or memory at the user's home directory"
+		return true, "refusing user home directory"
 	}
 	for _, name := range []string{"Desktop", "Documents", "Downloads", "Pictures", "Music", "Videos", "Public", "Templates"} {
 		candidate := filepath.Join(home, name)
 		if samePath(clean, candidate) {
-			return true, fmt.Sprintf("refusing to initialize git or memory at broad user folder %s", name)
+			return true, fmt.Sprintf("refusing broad user folder %s", name)
 		}
 	}
 	return false, ""
@@ -244,11 +244,16 @@ func hasGitMarker(dir string) bool {
 
 func shouldSkipNestedRepoScanDir(name string) bool {
 	switch name {
-	case ".git", ".harnejr", "node_modules", "vendor", ".cache", ".pnpm-store", "dist", "build":
+	case ".harnejr", "node_modules", "vendor", ".cache", ".pnpm-store", "dist", "build":
 		return true
 	default:
 		return false
 	}
+}
+
+func isMissingGitExecutable(err error) bool {
+	var execErr *exec.Error
+	return errorsAs(err, &execErr) && execErr.Err == exec.ErrNotFound
 }
 
 func samePath(a string, b string) bool {
