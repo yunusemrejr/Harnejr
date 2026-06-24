@@ -15,6 +15,7 @@ const (
 	ProtocolOllamaNative      Protocol = "ollama_native"
 	ProtocolCLIBacked         Protocol = "cli_backed"
 	ProtocolOAuthBacked       Protocol = "oauth_backed"
+	ProtocolCustomHTTP        Protocol = "custom_http"
 
 	RuntimeGoNative   Runtime = "go_native"
 	RuntimeNodeAISDK  Runtime = "node_ai_sdk"
@@ -61,26 +62,33 @@ type ModelProfile struct {
 }
 
 type ProviderProfile struct {
-	ID               string            `json:"id"`
-	DisplayName      string            `json:"displayName"`
-	Enabled          bool              `json:"enabled"`
-	Protocol         Protocol          `json:"protocol"`
-	Runtime          Runtime           `json:"runtime"`
-	BillingMode      BillingMode       `json:"billingMode"`
-	BaseURL          string            `json:"baseURL"`
-	Endpoint         string            `json:"endpoint"`
-	APIKeyEnv        string            `json:"apiKeyEnv,omitempty"`
-	APIKeySecretRef  string            `json:"apiKeySecretRef,omitempty"`
-	AuthMode         AuthMode          `json:"authMode"`
-	AuthHeaderName   string            `json:"authHeaderName,omitempty"`
-	CustomHeaders    map[string]string `json:"customHeaders"`
-	DefaultModel     string            `json:"defaultModel"`
-	Models           []ModelProfile    `json:"models"`
-	ReasoningAdapter string            `json:"reasoningAdapter,omitempty"`
-	StreamingParser  string            `json:"streamingParser"`
-	TimeoutMs        int               `json:"timeoutMs"`
-	MaxRetries       int               `json:"maxRetries"`
-	Notes            string            `json:"notes,omitempty"`
+	ID                   string                    `json:"id"`
+	Aliases              []string                  `json:"aliases,omitempty"`
+	OpenCodeProviderID   string                    `json:"openCodeProviderId,omitempty"`
+	DisplayName          string                    `json:"displayName"`
+	Enabled              bool                      `json:"enabled"`
+	Protocol             Protocol                  `json:"protocol"`
+	Runtime              Runtime                   `json:"runtime"`
+	BillingMode          BillingMode               `json:"billingMode"`
+	BaseURL              string                    `json:"baseURL"`
+	Endpoint             string                    `json:"endpoint"`
+	APIKeyEnv            string                    `json:"apiKeyEnv,omitempty"`
+	APIKeySecretRef      string                    `json:"apiKeySecretRef,omitempty"`
+	APIKeyFileHint       string                    `json:"apiKeyFileHint,omitempty"`
+	AuthMode             AuthMode                  `json:"authMode"`
+	AuthHeaderName       string                    `json:"authHeaderName,omitempty"`
+	CustomHeaders        map[string]string         `json:"customHeaders"`
+	DefaultModel         string                    `json:"defaultModel"`
+	Models               []ModelProfile            `json:"models"`
+	RequestDefaults      map[string]any            `json:"requestDefaults,omitempty"`
+	PayloadOverrides     map[string]any            `json:"payloadOverrides,omitempty"`
+	ExtraBody            map[string]any            `json:"extraBody,omitempty"`
+	ModelRequestDefaults map[string]map[string]any `json:"modelRequestDefaults,omitempty"`
+	ReasoningAdapter     string                    `json:"reasoningAdapter,omitempty"`
+	StreamingParser      string                    `json:"streamingParser"`
+	TimeoutMs            int                       `json:"timeoutMs"`
+	MaxRetries           int                       `json:"maxRetries"`
+	Notes                string                    `json:"notes,omitempty"`
 }
 
 type RouteRequest struct {
