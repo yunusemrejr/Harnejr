@@ -164,6 +164,10 @@ func (s *Server) handleProviderProbe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if req.Live {
+		if req.ProviderID == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "live provider probe requires providerId to avoid accidental quota usage"})
+			return
+		}
 		writeJSON(w, http.StatusOK, map[string]any{"providers": providers.ProbeLive(r.Context(), registry, req.ProviderID)})
 		return
 	}
