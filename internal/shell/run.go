@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/yunusemrejr/Harnejr/internal/policy"
@@ -80,7 +81,7 @@ func Run(ctx context.Context, req RunRequest) (RunResult, error) {
 }
 
 func commandFor(ctx context.Context, req RunRequest) (*exec.Cmd, string) {
-	if _, err := exec.LookPath("bwrap"); err == nil {
+	if bubblewrapUsable() {
 		args := []string{"--die-with-parent", "--unshare-all", "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--bind", req.Workspace, req.Workspace, "--chdir", req.Workspace}
 		for _, path := range []string{"/usr", "/bin", "/lib", "/lib64", "/etc"} {
 			if _, err := os.Stat(path); err == nil {
@@ -92,7 +93,24 @@ func commandFor(ctx context.Context, req RunRequest) (*exec.Cmd, string) {
 	}
 	cmd := exec.CommandContext(ctx, "bash", "-lc", req.Command)
 	cmd.Dir = req.Workspace
-	return cmd, "unsandboxed-no-bwrap"
+	return cmd, "unsandboxed-no-usable-bwrap"
+}
+
+var bwrapOnce sync.Once
+var bwrapOK bool
+
+func bubblewrapUsable() bool {
+	bwrapOnce.Do(func() {
+		if _, err := exec.LookPath("bwrap"); err != nil {
+			bwrapOK = false
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "bwrap", "--ro-bind", "/usr", "/usr", "true")
+		bwrapOK = cmd.Run() == nil
+	})
+	return bwrapOK
 }
 
 type cappedBuffer struct {
