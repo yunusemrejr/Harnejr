@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "roots": [
+    "~/skills",
+    "~/.agents",
+    "~/.codex/skills",
+    ".harnejr/skills"
+  ],
+  "policy": {
+    "scanAtSessionStart": true,
+    "readSummariesBeforeFullContent": true,
+    "logSelectedSkills": true,
+    "failSeriousTaskIfRelevantSkillIgnored": true
+  }
+}
