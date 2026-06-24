@@ -20,6 +20,7 @@ jobs:
       - run: corepack prepare pnpm@9.15.4 --activate
       - run: go test ./...
       - run: go build ./cmd/harnejrd
+      - run: bash scripts/production-smoke.sh
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm build
       - run: pnpm typecheck
