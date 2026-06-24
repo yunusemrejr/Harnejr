@@ -42,6 +42,7 @@ func New(opts Options) *Server {
 	mux.HandleFunc("PUT /api/prompts/user", s.handleSaveUserPrompt)
 	mux.HandleFunc("POST /api/policy/classify-shell", s.handleClassifyShell)
 	mux.HandleFunc("POST /api/workspaces/prepare", s.handlePrepareWorkspace)
+	mux.HandleFunc("POST /api/control/apply", s.handleApplyControl)
 	mux.HandleFunc("POST /api/quality/loc", s.handleLoCScan)
 	mux.HandleFunc("POST /api/healing/plan", s.handleHealingPlan)
 
@@ -84,7 +85,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
     <section>
       <h1>Harnejr</h1>
       <p>The local daemon is running. The full web GUI scaffold lives under <code>apps/web</code>.</p>
-      <p>API: <code>/api/health</code>, <code>/api/doctor</code>, <code>/api/prompts/user</code>, <code>/api/mcp/systems</code>, <code>/api/workspaces/prepare</code>.</p>
+      <p>API: <code>/api/health</code>, <code>/api/doctor</code>, <code>/api/prompts/user</code>, <code>/api/mcp/systems</code>, <code>/api/control/apply</code>.</p>
     </section>
   </main>
 </body>
