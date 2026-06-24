@@ -36,20 +36,32 @@ button:hover {
   background: #2b2b2b;
 }
 
+input,
 textarea {
   width: 100%;
-  resize: vertical;
   border: 1px solid #6b665d;
   background: #242424;
   color: #f1ead8;
-  border-radius: 18px;
-  padding: 16px;
+  border-radius: 16px;
+  padding: 13px 14px;
   line-height: 1.5;
   outline: none;
 }
 
+textarea {
+  resize: vertical;
+}
+
+input:focus,
 textarea:focus {
   border-color: #a99d87;
+}
+
+label {
+  color: #d8d0bd;
+  display: grid;
+  gap: 8px;
+  line-height: 1.4;
 }
 
 .shell {
@@ -176,13 +188,25 @@ p {
   flex: 1;
 }
 
-.editorBox {
+.editorBox,
+.formGrid {
   display: grid;
   gap: 12px;
 }
 
-.editorBox button {
+.editorBox button,
+.formGrid button {
   justify-self: end;
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.checkRow input {
+  width: auto;
 }
 
 .systemList {
