@@ -36,6 +36,7 @@ The web UI includes a permanent user-level system prompt editor. The prompt is s
 
 ```text
 GET /api/prompts/user
+GET /api/prompts/composed
 PUT /api/prompts/user
 ```
 
@@ -126,6 +127,7 @@ scripts/doctor.sh
 | `GET /api/tools` | List built-in harness tools. |
 | `GET /api/mcp/systems` | List built-in local harness systems. |
 | `GET /api/prompts/user` | Read the permanent user-level system prompt. |
+| `GET /api/prompts/composed` | Read the core prompt plus the saved user-level prompt. |
 | `PUT /api/prompts/user` | Save the permanent user-level system prompt. |
 | `POST /api/control/apply` | Persist goal, topic, loop, and yolo state for a workspace session. |
 | `POST /api/policy/classify-shell` | Classify a shell command as allow, ask, or deny. |
