@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "workspace": {
+    "defaultTrust": "ask",
+    "denyWritesOutsideWorkspace": true,
+    "denySecretMutation": true,
+    "protectedPathPatterns": [
+      "~/.ssh/**",
+      "~/.aws/**",
+      "~/.gnupg/**",
+      "~/.config/**",
+      "/etc/**",
+      "/usr/**",
+      "/var/**",
+      "/boot/**"
+    ]
+  },
+  "shell": {
+    "defaultAction": "ask",
+    "yoloDefaultAction": "deny_until_allowlisted",
+    "denyPatterns": [
+      "sudo",
+      "su",
+      "doas",
+      "pkexec",
+      "rm -rf /",
+      "mkfs",
+      "wipefs",
+      "dd if=/dev",
+      "dd of=/dev",
+      "shutdown",
+      "reboot",
+      "systemctl",
+      "iptables",
+      "ufw",
+      "git push --force",
+      "curl | sh",
+      "wget | sh"
+    ],
+    "readOnlyAllowPrefixes": [
+      "pwd",
+      "ls",
+      "find",
+      "rg",
+      "grep",
+      "cat",
+      "sed -n",
+      "git status",
+      "git diff",
+      "git log"
+    ],
+    "projectCheckAllowPrefixes": [
+      "go test",
+      "npm test",
+      "npm run test",
+      "pnpm test",
+      "pnpm run test",
+      "pytest"
+    ]
+  },
+  "autonomy": {
+    "yoloKeepsHardBlocks": true,
+    "unsafeCommandsShouldNotAsk": true,
+    "unsafeCommandsShouldContinueWithSafeAlternative": true,
+    "goalRequiresJudge": true,
+    "goalAndLoopMutuallyExclusive": true,
+    "swarmSize": 5
+  }
+}
