@@ -45,13 +45,22 @@ func New(opts Options) *Server {
 	mux.HandleFunc("GET /api/mcp/systems", s.handleMCPSystems)
 	mux.HandleFunc("GET /api/prompts/user", s.handleGetUserPrompt)
 	mux.HandleFunc("GET /api/prompts/composed", s.handleGetComposedPrompt)
+	mux.HandleFunc("GET /api/providers/probe", s.handleProviderProbe)
 	mux.HandleFunc("PUT /api/prompts/user", s.handleSaveUserPrompt)
 	mux.HandleFunc("POST /api/session/message", s.handleSessionMessage)
+	mux.HandleFunc("POST /api/session/export", s.handleSessionExport)
 	mux.HandleFunc("POST /api/policy/classify-shell", s.handleClassifyShell)
+	mux.HandleFunc("POST /api/shell/run", s.handleShellRun)
 	mux.HandleFunc("POST /api/workspaces/prepare", s.handlePrepareWorkspace)
+	mux.HandleFunc("POST /api/workspace/files/list", s.handleFileList)
+	mux.HandleFunc("POST /api/workspace/files/read", s.handleFileRead)
+	mux.HandleFunc("POST /api/workspace/files/write", s.handleFileWrite)
 	mux.HandleFunc("POST /api/control/apply", s.handleApplyControl)
 	mux.HandleFunc("POST /api/quality/loc", s.handleLoCScan)
 	mux.HandleFunc("POST /api/healing/plan", s.handleHealingPlan)
+	mux.HandleFunc("POST /api/agents/plan", s.handleAgentPlan)
+	mux.HandleFunc("POST /api/completion/check", s.handleCompletionCheck)
+	mux.HandleFunc("POST /api/skills/discover", s.handleSkillsDiscover)
 
 	s.httpServer = &http.Server{
 		Addr:              opts.Listen,
