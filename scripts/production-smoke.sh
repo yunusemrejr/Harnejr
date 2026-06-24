@@ -33,8 +33,11 @@ curl -fsS "$url/api/providers/registry" | grep -q 'providers'
 curl -fsS "$url/api/mcp/check" >/dev/null
 curl -fsS -X POST "$url/api/policy/classify-shell" -H 'content-type: application/json' -d '{"command":"sudo rm -rf /"}' | grep -q 'deny'
 curl -fsS -X POST "$url/api/workspaces/prepare" -H 'content-type: application/json' -d "{\"workspaceRoot\":\"$workspace\",\"sessionId\":\"smoke\",\"userRequest\":\"smoke\"}" >/dev/null
-curl -fsS -X POST "$url/api/workspace/files/write" -H 'content-type: application/json' -d "{\"workspaceRoot\":\"$workspace\",\"sessionId\":\"smoke\",\"path\":\"notes.md\",\"content\":\"ok\"}" >/dev/null
-curl -fsS -X POST "$url/api/workspace/files/patch" -H 'content-type: application/json' -d "{\"workspaceRoot\":\"$workspace\",\"sessionId\":\"smoke\",\"path\":\"notes.md\",\"oldText\":\"ok\",\"newText\":\"patched\"}" >/dev/null
+curl -fsS -X POST "$url/api/goals/start" -H 'content-type: application/json' -d "{\"workspaceRoot\":\"$workspace\",\"sessionId\":\"smoke\",\"goal\":\"ship smoke goal\"}" | grep -q 'checkpoints'
+curl -fsS -X POST "$url/api/goals/checkpoint" -H 'content-type: application/json' -d "{\"workspaceRoot\":\"$workspace\",\"sessionId\":\"smoke\",\"checkpointId\":\"scope\",\"status\":\"done\",\"notes\":\"smoke\"}" >/dev/null
+curl -fsS -X POST "$url/api/workspace/files/write" -H 'content-type: application/json' -d "{\"workspaceRoot\":\"$workspace\",\"sessionId\":\"smoke\",\"path\":\"notes.md\",\"content\":\"ok\"}" | grep -q 'backup'
+curl -fsS -X POST "$url/api/workspace/files/patch" -H 'content-type: application/json' -d "{\"workspaceRoot\":\"$workspace\",\"sessionId\":\"smoke\",\"path\":\"notes.md\",\"oldText\":\"ok\",\"newText\":\"patched\"}" | grep -q 'snapshot'
+curl -fsS -X POST "$url/api/memory/summary" -H 'content-type: application/json' -d "{\"workspaceRoot\":\"$workspace\",\"sessionId\":\"smoke\"}" | grep -q 'summary'
 curl -fsS -X POST "$url/api/shell/run" -H 'content-type: application/json' -d "{\"workspaceRoot\":\"$workspace\",\"sessionId\":\"smoke\",\"command\":\"pwd\"}" >/dev/null
 curl -fsS -X POST "$url/api/agents/plan" -H 'content-type: application/json' -d '{"task":"implement production provider routing fix","mode":"goal","requestedModel":"kat-coder-pro-v2"}' | grep -q 'stepfun-step-plan'
 curl -fsS -X POST "$url/api/completion/check" -H 'content-type: application/json' -d '{"goal":"ship","evidence":[],"tests":[],"subagentReviews":0,"qualityGatePass":false,"providerPlanPass":false}' | grep -q 'accepted":false'
