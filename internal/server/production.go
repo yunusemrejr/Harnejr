@@ -144,10 +144,27 @@ func (s *Server) handleCompletionCheck(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, judge.Evaluate(req))
 }
 
+type providerProbeRequest struct {
+	Live       bool   `json:"live"`
+	ProviderID string `json:"providerId"`
+}
+
 func (s *Server) handleProviderProbe(w http.ResponseWriter, r *http.Request) {
 	registry, err := providers.LoadRegistry(filepath.Join(s.configDir, "providers.default.json"))
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	var req providerProbeRequest
+	if r.Method == http.MethodPost {
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid JSON body"})
+			return
+		}
+	}
+	if req.Live {
+		writeJSON(w, http.StatusOK, map[string]any{"providers": providers.ProbeLive(r.Context(), registry, req.ProviderID)})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"providers": providers.ProbeStatic(registry)})
