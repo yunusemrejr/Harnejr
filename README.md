@@ -2,13 +2,13 @@
 
 Harnejr is an open-source, MIT-licensed, Ubuntu-native agentic coding harness with a local web interface. It is built around a Go daemon, a TypeScript web application, editable provider profiles, workspace safety primitives, built-in local harness systems, and project-local memory.
 
-Harnejr is not a prompt wrapper. The daemon owns policy, workspace preparation, persistent controls, quality checks, readiness reporting, provider contracts, logs, and completion evidence.
+Harnejr is not a prompt wrapper. The daemon owns policy, workspace preparation, persistent controls, quality checks, readiness reporting, provider contracts, event logs, and completion evidence.
 
 ## Project status
 
-Harnejr is in active scaffold development. The repository includes a runnable daemon, installable web control surface, default provider registry, policy config, workspace preparation, local memory, shell classification, path-boundary checks, built-in local harness systems, doctor reporting, LoC quality scanning, repair planning, scoped goal/topic controls, a session prompt console, configured model selector, command entry, and a permanent user-level system prompt editor.
+Harnejr is in active scaffold-to-runtime development. The repository includes a runnable daemon, installable web control surface, default provider registry, policy config, workspace preparation, local memory, shell classification, policy-gated shell execution, safe workspace file APIs, path-boundary checks, built-in local harness systems, Doctor reporting, LoC quality scanning, repair planning, scoped goal/topic controls, deterministic subagent planning, completion evidence checks, provider probes, skills discovery, a session prompt console, configured model selector, command entry, and a permanent user-level system prompt editor.
 
-The project is ready for serious harness development and local control-surface testing. Full autonomous coding execution, live provider calls, subagent execution, external MCP handshakes, and judge enforcement are still under implementation.
+Harnejr is ready for serious local harness development and controlled workspace testing. Full autonomous provider-backed coding, provider fallback during live tasks, external MCP handshakes, subagent execution, judge execution, and sandbox/container execution are still under implementation. See `docs/production-readiness.md` for the current confirmed/not-confirmed matrix.
 
 ## Install
 
@@ -48,18 +48,33 @@ harnejr version     # print installed metadata
 - TypeScript web UI owns configuration, visibility, prompt editing, session controls, readiness views, model selection, commands, and provider editing.
 - Provider configuration must be explicit, editable, and billing-path aware.
 - Autonomy must remove unnecessary confirmation loops without bypassing hard safety rules.
-- Completion claims must be supported by evidence, tests, logs, quality gates, or independent review.
+- Completion claims must be supported by evidence, tests, logs, quality gates, subagent plans, or independent review.
 
 ## Built-in local systems
 
 | System | Purpose |
 | --- | --- |
-| Harnejr Doctor | Read-only readiness and configuration inspection. |
+| Harnejr Doctor | Readiness and configuration inspection. |
 | LoC Controller | Scans source files and flags oversized files before completion. |
 | Goal and Topic Controller | Stores scoped goal, topic, loop, and yolo state for a workspace session. |
 | Autonomous Healer | Builds deterministic repair plans from doctor and quality findings. |
 | Workspace Memory | Prepares Git state and `.harnejr` project memory. |
 | Context Efficiency | Provides compact state packaging for efficient session continuation. |
+
+## Runtime safety primitives
+
+Current daemon-owned primitives include:
+
+- safe workspace preparation with guarded Git initialization;
+- `.harnejr` Markdown memory plus redacted `events.jsonl` ledger;
+- real-path workspace boundary checks;
+- safe file list/read/write APIs with secret-path denial;
+- deterministic shell classifier;
+- policy-gated shell runner that only executes `allow` decisions;
+- provider registry validation and static/opt-in-live provider probes;
+- deterministic subagent plan generation;
+- evidence-based completion gate;
+- global skill/agent discovery.
 
 ## Web control surface
 
@@ -112,7 +127,7 @@ Every session prepares its workspace before agent work begins. Harnejr searches 
 
 Harnejr refuses broad locations such as the filesystem root, the user's home folder, Desktop, Documents, Downloads, Pictures, Music, Videos, Public, Templates, and system-level folders. It also refuses to initialize a parent folder when child folders already contain Git repositories.
 
-For safe project roots, Harnejr creates a hidden `.harnejr` directory containing Markdown memory files and scoped control state.
+For safe project roots, Harnejr creates a hidden `.harnejr` directory containing Markdown memory files, scoped control state, and redacted JSONL events.
 
 ## Repository layout
 
@@ -121,18 +136,23 @@ apps/web/                 Local web application
 packages/shared/          TypeScript schemas shared by UI and sidecars
 packages/provider-node/   Provider SDK sidecar scaffold
 cmd/harnejrd/             Go daemon entrypoint
+internal/agents/          Subagent planning primitives
 internal/config/          Local config loading and defaults
 internal/doctor/          Readiness report generator
+internal/events/          Redacted event ledger
 internal/healing/         Deterministic repair planner
+internal/judge/           Completion evidence gate
 internal/mcp/             Built-in local harness systems
 internal/policy/          Shell/action policy primitives
 internal/prompts/         Persistent user-level prompt storage
-internal/providers/       Provider contracts and routing types
+internal/providers/       Provider contracts, probes, and validation
 internal/quality/         LoC and quality gate primitives
 internal/server/          HTTP API served by the daemon
 internal/session/         Goal, topic, yolo, and loop control state
+internal/shell/           Policy-gated shell runner
+internal/skills/          Global skill and agent discovery
 internal/tools/           Built-in harness tool registry
-internal/workspace/       Workspace path, Git, memory, and boundary logic
+internal/workspace/       Workspace path, Git, memory, files, and boundary logic
 configs/                  Default provider, policy, agent, MCP, and skill configs
 docs/                     Architecture and engineering notes
 scripts/                  Development helpers
@@ -164,27 +184,37 @@ scripts/doctor.sh
 | `GET /api/doctor` | Return readiness checks, built-in tools, and local systems. |
 | `GET /api/tools` | List built-in harness tools. |
 | `GET /api/mcp/systems` | List built-in local harness systems. |
+| `GET /api/providers/probe` | Static provider readiness and auth-reference probe. |
+| `POST /api/providers/probe` | Optional live provider probe when `{ "live": true }` is supplied. |
 | `GET /api/prompts/user` | Read the permanent user-level system prompt. |
 | `GET /api/prompts/composed` | Read the core prompt plus the saved user-level prompt. |
 | `PUT /api/prompts/user` | Save the permanent user-level system prompt. |
 | `POST /api/session/message` | Store a web prompt or command into workspace memory. |
+| `POST /api/session/export` | Return the workspace event JSONL ledger. |
 | `POST /api/control/apply` | Persist goal, topic, loop, and yolo state for a workspace session. |
 | `POST /api/policy/classify-shell` | Classify a shell command as allow, ask, or deny. |
+| `POST /api/shell/run` | Execute only policy-allowed shell commands in the prepared workspace. |
 | `POST /api/workspaces/prepare` | Prepare a workspace by resolving Git state and local memory. |
+| `POST /api/workspace/files/list` | List workspace files within path boundaries. |
+| `POST /api/workspace/files/read` | Read non-secret workspace files within path boundaries. |
+| `POST /api/workspace/files/write` | Write non-secret workspace files within path boundaries. |
 | `POST /api/quality/loc` | Scan source line counts and flag oversized files. |
 | `POST /api/healing/plan` | Build a repair plan from doctor and quality findings. |
+| `POST /api/agents/plan` | Build a deterministic subagent plan for a task. |
+| `POST /api/completion/check` | Block or accept completion based on evidence requirements. |
+| `POST /api/skills/discover` | Discover global/workspace skills and agents. |
 
 ## Safety model
 
-Harnejr treats prompts as guidance, not enforcement. Current implemented safety primitives include shell command classification, workspace path boundaries, symlink escape prevention, guarded Git initialization, project-local memory, scoped control state, LoC quality gates, repair-plan output, and additive user prompt storage.
+Harnejr treats prompts as guidance, not enforcement. Current implemented safety primitives include shell command classification, policy-gated shell execution, workspace path boundaries, symlink escape prevention, guarded Git initialization, project-local memory, scoped control state, safe file APIs, LoC quality gates, repair-plan output, provider validation, event redaction, and additive user prompt storage.
 
 ## Provider model
 
-Harnejr models a provider as a transport contract, not just a base URL and model name. Provider profiles track protocol, runtime, billing mode, endpoint path, authentication mode, model namespace, reasoning adapter, stream parser, timeout, retry policy, and notes.
+Harnejr models a provider as a transport contract, not just a base URL and model name. Provider profiles track protocol, runtime, billing mode, endpoint path, authentication mode, model namespace, reasoning adapter, stream parser, timeout, retry policy, aliases, OpenCode-compatible IDs, request defaults, model-specific defaults, and notes.
 
 ## Roadmap
 
-Near-term work: SQLite-backed session history, workspace edit APIs, policy-gated shell execution, live provider execution, provider health probes, OpenAI-compatible and Ollama adapters, command dispatcher, subagent scheduler, judge loop, external MCP process handshakes, skills discovery, provider editor, logs, policy, and export screens.
+Near-term work: SQLite-backed session history, structured patch application and file locks, live provider execution, provider fallback during active tasks, OpenAI-compatible and Ollama adapters, command dispatcher, provider-backed subagent scheduler, provider-backed judge loop, external MCP process handshakes, provider editor, logs, policy, and export screens.
 
 ## License
 
