@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "agents": [
+    {
+      "id": "primary-engineer",
+      "role": "main",
+      "modelPreference": ["deepseek-api/deepseek-v4-flash", "kimi-code-subscription/kimi-for-coding"],
+      "tools": "workspace-safe"
+    },
+    {
+      "id": "stepfun-verifier",
+      "role": "reviewer",
+      "modelPreference": ["stepfun-step-plan/step-3.7-flash"],
+      "tools": "read-only"
+    },
+    {
+      "id": "kat-coder",
+      "role": "implementation",
+      "modelPreference": ["streamlake-kat-coding-plan/kat-coder-pro-v2"],
+      "tools": "workspace-safe",
+      "requiresCompanion": "stepfun-verifier"
+    },
+    {
+      "id": "long-context-reader",
+      "role": "analysis",
+      "modelPreference": ["minimax-token-plan/MiniMax-M3"],
+      "tools": "read-only"
+    },
+    {
+      "id": "completion-skeptic",
+      "role": "judge",
+      "modelPreference": ["nvidia-build-nim/nvidia/nemotron-3-ultra-550b-a55b", "stepfun-step-plan/step-3.7-flash"],
+      "tools": "read-only"
+    }
+  ],
+  "mandatoryRules": {
+    "seriousCodeTaskRequiresSubagents": true,
+    "goalCompletionRequiresTwoReviewPasses": true,
+    "katRequiresStepfunCompanion": true,
+    "providerFailureRequiresReplacement": true
+  }
+}
