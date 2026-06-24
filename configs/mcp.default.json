@@ -1,5 +1,13 @@
 {
   "version": 1,
+  "builtinSystems": [
+    "harnejr-doctor",
+    "loc-controller",
+    "goal-topic-controller",
+    "autonomous-healer",
+    "workspace-memory",
+    "context-efficiency"
+  ],
   "servers": [],
   "statusLevels": [
     "configured",
