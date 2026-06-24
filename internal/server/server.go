@@ -52,6 +52,7 @@ func New(opts Options) *Server {
 	mux.HandleFunc("POST /api/session/message", s.handleSessionMessage)
 	mux.HandleFunc("POST /api/session/export", s.handleSessionExport)
 	mux.HandleFunc("POST /api/llm/generate", s.handleLLMGenerate)
+	mux.HandleFunc("POST /api/llm/stream", s.handleLLMStream)
 	mux.HandleFunc("POST /api/workers/run", s.handleWorkerRun)
 	mux.HandleFunc("POST /api/review/run", s.handleReviewRun)
 	mux.HandleFunc("POST /api/policy/classify-shell", s.handleClassifyShell)
