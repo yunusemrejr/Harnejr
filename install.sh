@@ -36,6 +36,7 @@ launcher="$bin_dir/harnejr"
 listen_addr="${HARNEJR_LISTEN:-127.0.0.1:8765}"
 
 need git
+need curl
 need go
 need node
 need npm
@@ -117,29 +118,29 @@ open_ui() {
 start_daemon() {
   if health; then
     open_ui
-    printf 'Harnejr is already running at %s\\n' "\$url"
+    printf 'Harnejr is already running at %s\n' "\$url"
     return 0
   fi
   mkdir -p "\$install_root"
   "\$bin" --listen "\$listen" --config-dir "\$config_dir" --web-dir "\$web_dir" >>"\$log_file" 2>&1 &
   daemon_pid=\$!
-  printf '%s\\n' "\$daemon_pid" > "\$pid_file"
+  printf '%s\n' "\$daemon_pid" > "\$pid_file"
   for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
     if health; then
       open_ui
-      printf 'Harnejr daemon started on %s with pid %s\\n' "\$url" "\$daemon_pid"
-      printf 'Daemon log: %s\\n' "\$log_file"
+      printf 'Harnejr daemon started on %s with pid %s\n' "\$url" "\$daemon_pid"
+      printf 'Daemon log: %s\n' "\$log_file"
       return 0
     fi
     sleep 0.2
   done
-  printf 'Harnejr daemon did not become ready. Log: %s\\n' "\$log_file" >&2
+  printf 'Harnejr daemon did not become ready. Log: %s\n' "\$log_file" >&2
   return 1
 }
 
 stop_daemon() {
   if [ -f "\$pid_file" ]; then
-    pid="$(cat "\$pid_file" 2>/dev/null || true)"
+    pid="\$(cat "\$pid_file" 2>/dev/null || true)"
     if [ -n "\$pid" ] && kill -0 "\$pid" >/dev/null 2>&1; then
       kill "\$pid" >/dev/null 2>&1 || true
       for _ in 1 2 3 4 5; do
@@ -149,7 +150,7 @@ stop_daemon() {
     fi
     rm -f "\$pid_file"
   fi
-  printf 'Harnejr daemon stopped if it was running.\\n'
+  printf 'Harnejr daemon stopped if it was running.\n'
 }
 
 doctor() {
@@ -164,7 +165,7 @@ doctor() {
     done
   fi
   curl -fsS "\$url/api/doctor"
-  printf '\\n'
+  printf '\n'
   if [ "\$started" = "1" ]; then
     kill "\$temp_pid" >/dev/null 2>&1 || true
   fi
@@ -177,17 +178,17 @@ update_harnejr() {
     stop_daemon
   fi
   if [ ! -d "\$source_dir/.git" ]; then
-    mkdir -p "$(dirname "\$source_dir")"
+    mkdir -p "\${source_dir%/*}"
     git clone --branch "\$branch" "\$repo_url" "\$source_dir"
   fi
   git -C "\$source_dir" fetch --prune origin
   git -C "\$source_dir" checkout "\$branch"
   git -C "\$source_dir" pull --ff-only origin "\$branch"
-  HARNEJR_INSTALL_ROOT="\$install_root" HARNEJR_BIN_DIR="$(dirname "\$launcher_path")" HARNEJR_LISTEN="\$listen" bash "\$source_dir/install.sh"
+  HARNEJR_INSTALL_ROOT="\$install_root" HARNEJR_BIN_DIR="\${launcher_path%/*}" HARNEJR_LISTEN="\$listen" bash "\$source_dir/install.sh"
   if [ "\$was_running" = "1" ]; then
     exec "\$launcher_path" start
   fi
-  printf 'Harnejr updated. Run: harnejr\\n'
+  printf 'Harnejr updated. Run: harnejr\n'
 }
 
 uninstall_harnejr() {
@@ -207,7 +208,7 @@ if install_root.exists():
 if launcher.exists():
     launcher.unlink()
 PY
-  printf 'Harnejr uninstalled. Project workspaces and their .harnejr memory folders were not removed.\\n'
+  printf 'Harnejr uninstalled. Project workspaces and their .harnejr memory folders were not removed.\n'
 }
 
 case "\${1:-start}" in
@@ -216,7 +217,7 @@ case "\${1:-start}" in
   doctor|status) doctor ;;
   update) update_harnejr ;;
   uninstall) uninstall_harnejr ;;
-  version) cat "\$install_root/install.json" ; printf '\\n' ;;
+  version) cat "\$install_root/install.json" ; printf '\n' ;;
   help|-h|--help)
     cat <<'HELP'
 Harnejr commands:
@@ -230,8 +231,8 @@ Harnejr commands:
 HELP
     ;;
   *)
-    printf 'Unknown Harnejr command: %s\\n' "\$1" >&2
-    printf 'Run: harnejr help\\n' >&2
+    printf 'Unknown Harnejr command: %s\n' "\$1" >&2
+    printf 'Run: harnejr help\n' >&2
     exit 2
     ;;
 esac
