@@ -5,6 +5,7 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "outDir": "dist",
+    "rootDir": "src",
     "skipLibCheck": true
   },
   "include": ["src/**/*.ts"]
