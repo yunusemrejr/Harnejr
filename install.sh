@@ -14,18 +14,25 @@ need() {
   fi
 }
 
+need git
 need go
 need node
 need npm
+need pnpm
 
 mkdir -p "$install_root/bin" "$install_root/configs" "$install_root/web" "$bin_dir"
 
 (
   cd "$repo_root"
   go test ./...
+  pnpm install
+  pnpm build
   go build -o "$install_root/bin/harnejrd" ./cmd/harnejrd
 )
 
+rm -rf "$install_root/web"
+mkdir -p "$install_root/web"
+cp -R "$repo_root/apps/web/dist/." "$install_root/web/"
 cp -R "$repo_root/configs/." "$install_root/configs/"
 
 cat > "$launcher" <<LAUNCHER
@@ -33,7 +40,7 @@ cat > "$launcher" <<LAUNCHER
 set -euo pipefail
 listen="\${HARNEJR_LISTEN:-$listen_addr}"
 url="http://\${listen}"
-"$install_root/bin/harnejrd" --listen "\$listen" --config-dir "$install_root/configs" >/tmp/harnejr-daemon.log 2>&1 &
+"$install_root/bin/harnejrd" --listen "\$listen" --config-dir "$install_root/configs" --web-dir "$install_root/web" >/tmp/harnejr-daemon.log 2>&1 &
 daemon_pid=\$!
 for _ in 1 2 3 4 5 6 7 8 9 10; do
   if command -v xdg-open >/dev/null 2>&1; then
@@ -50,5 +57,6 @@ LAUNCHER
 chmod +x "$launcher"
 
 echo "Installed Harnejr daemon to $install_root"
+echo "Installed web UI to $install_root/web"
 echo "Installed launcher to $launcher"
 echo "Run: harnejr"
