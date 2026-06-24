@@ -3,12 +3,12 @@ package doctor
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
 	"github.com/yunusemrejr/Harnejr/internal/mcp"
 	"github.com/yunusemrejr/Harnejr/internal/providers"
+	"github.com/yunusemrejr/Harnejr/internal/shell"
 	"github.com/yunusemrejr/Harnejr/internal/tools"
 )
 
@@ -42,11 +42,7 @@ func Run(configDir string) Report {
 	} else {
 		report.pass("provider-registry", fmt.Sprintf("%d providers validated", len(registry.Providers)))
 	}
-	if _, err := exec.LookPath("bwrap"); err != nil {
-		report.fail("ubuntu-sandbox", "bubblewrap bwrap not found; shell runner will report unsandboxed fallback")
-	} else {
-		report.pass("ubuntu-sandbox", "bubblewrap available")
-	}
+	if shell.BubblewrapUsable() { report.pass("ubuntu-sandbox", "bubblewrap usable") } else { report.fail("ubuntu-sandbox", "bubblewrap is missing or unusable; shell runner will report unsandboxed fallback") }
 	if len(report.Tools) == 0 { report.fail("builtin-tools", "no built-in tools registered") } else { report.pass("builtin-tools", "built-in tools registered") }
 	if len(report.MCPSystems) == 0 { report.fail("builtin-mcp", "no built-in MCP systems registered") } else { report.pass("builtin-mcp", "built-in MCP systems registered") }
 	return report
