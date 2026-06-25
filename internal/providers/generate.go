@@ -12,15 +12,15 @@ import (
 )
 
 type GenerateRequest struct {
-	ProviderID           string `json:"providerId"`
-	Model                string `json:"model"`
-	System               string `json:"system"`
-	Prompt               string `json:"prompt"`
-	MaxTokens            int    `json:"maxTokens"`
-	AllowBillingChange   bool   `json:"allowBillingChange"`
-	CacheMode            string `json:"cacheMode,omitempty"`
-	CacheStablePrefix    string `json:"cacheStablePrefix,omitempty"`
-	CacheDynamicContext  string `json:"cacheDynamicContext,omitempty"`
+	ProviderID          string `json:"providerId"`
+	Model               string `json:"model"`
+	System              string `json:"system"`
+	Prompt              string `json:"prompt"`
+	MaxTokens           int    `json:"maxTokens"`
+	AllowBillingChange  bool   `json:"allowBillingChange"`
+	CacheMode           string `json:"cacheMode,omitempty"`
+	CacheStablePrefix   string `json:"cacheStablePrefix,omitempty"`
+	CacheDynamicContext string `json:"cacheDynamicContext,omitempty"`
 }
 
 type GenerateResult struct {
@@ -72,6 +72,9 @@ func GenerateWithFallback(ctx context.Context, registry Registry, preferred []st
 			return result
 		}
 		last = result
+		if !retryableGenerationError(result.ErrorClass) {
+			continue
+		}
 	}
 	if last.Error != "" {
 		last.Tried = tried
@@ -110,6 +113,9 @@ func Generate(ctx context.Context, provider ProviderProfile, req GenerateRequest
 	model := strings.TrimSpace(req.Model)
 	if model == "" {
 		model = provider.DefaultModel
+	}
+	if provider.Runtime == RuntimeNodeAISDK || provider.Runtime == RuntimeNodeOpenAI {
+		return GenerateViaNode(ctx, provider, req, model)
 	}
 	result := GenerateResult{ProviderID: provider.ID, Model: model, BillingMode: string(provider.BillingMode)}
 	key, ok := authValue(provider)
@@ -171,6 +177,15 @@ func Generate(ctx context.Context, provider ProviderProfile, req GenerateRequest
 	result.Usage = parsed.Usage
 	applyUsageToCache(result.Cache, parsed.Usage)
 	return result
+}
+
+func retryableGenerationError(errorClass string) bool {
+	switch errorClass {
+	case "network", "timeout", "server-retryable", "rate-limit-or-quota", "sdk-runtime", "stream":
+		return true
+	default:
+		return false
+	}
 }
 
 func ClassifyHTTPStatus(status int) string {
