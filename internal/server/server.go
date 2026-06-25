@@ -51,6 +51,7 @@ func New(opts Options) *Server {
 	mux.HandleFunc("PUT /api/providers/registry", s.handleProviderRegistry)
 	mux.HandleFunc("PUT /api/providers/secret", s.handleProviderSecret)
 	mux.HandleFunc("POST /api/providers/probe", s.handleProviderProbe)
+	mux.HandleFunc("POST /api/providers/route", s.handleProviderRoute)
 	mux.HandleFunc("PUT /api/prompts/user", s.handleSaveUserPrompt)
 	mux.HandleFunc("POST /api/session/message", s.handleSessionMessage)
 	mux.HandleFunc("POST /api/session/export", s.handleSessionExport)
@@ -84,24 +85,43 @@ func (s *Server) ListenAndServe() error { return s.httpServer.ListenAndServe() }
 func (s *Server) Shutdown(ctx context.Context) error { return s.httpServer.Shutdown(ctx) }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	if s.serveBuiltWeb(w, r) { return }
+	if s.serveBuiltWeb(w, r) {
+		return
+	}
 	w.Header().Set("content-type", "text/html; charset=utf-8")
 	_, _ = w.Write([]byte(`<!doctype html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Harnejr</title><style>body{margin:0;background:#242424;color:#f2ead7;font-family:Arial,Helvetica,sans-serif}main{max-width:920px;margin:0 auto;padding:48px 24px}section{border:1px solid #6f6a5e;background:#303030;border-radius:18px;padding:24px}h1{font-size:44px;margin:0 0 12px;font-weight:700}p{color:#d8d0bd;line-height:1.55}code{background:#1d1d1d;color:#f2ead7;padding:2px 6px;border-radius:6px}</style></head><body><main><section><h1>Harnejr daemon</h1><p>The daemon is running, but built web assets were not found. Run <code>pnpm install</code>, <code>pnpm build</code>, then start the daemon with <code>--web-dir apps/web/dist</code>, or reinstall with <code>bash install.sh</code>.</p></section></main></body></html>`))
 }
 
 func (s *Server) serveBuiltWeb(w http.ResponseWriter, r *http.Request) bool {
-	if strings.TrimSpace(s.webDir) == "" { return false }
+	if strings.TrimSpace(s.webDir) == "" {
+		return false
+	}
 	root, err := filepath.Abs(s.webDir)
-	if err != nil { return false }
+	if err != nil {
+		return false
+	}
 	index := filepath.Join(root, "index.html")
-	if _, err := os.Stat(index); err != nil { return false }
+	if _, err := os.Stat(index); err != nil {
+		return false
+	}
 	rel := strings.TrimPrefix(r.URL.Path, "/")
-	if rel == "" || strings.HasSuffix(r.URL.Path, "/") { http.ServeFile(w, r, index); return true }
+	if rel == "" || strings.HasSuffix(r.URL.Path, "/") {
+		http.ServeFile(w, r, index)
+		return true
+	}
 	candidate := filepath.Join(root, filepath.Clean(rel))
 	absCandidate, err := filepath.Abs(candidate)
-	if err != nil { return false }
-	if absCandidate != root && !strings.HasPrefix(absCandidate, root+string(os.PathSeparator)) { http.Error(w, "invalid asset path", http.StatusBadRequest); return true }
-	if info, err := os.Stat(absCandidate); err == nil && !info.IsDir() { http.ServeFile(w, r, absCandidate); return true }
+	if err != nil {
+		return false
+	}
+	if absCandidate != root && !strings.HasPrefix(absCandidate, root+string(os.PathSeparator)) {
+		http.Error(w, "invalid asset path", http.StatusBadRequest)
+		return true
+	}
+	if info, err := os.Stat(absCandidate); err == nil && !info.IsDir() {
+		http.ServeFile(w, r, absCandidate)
+		return true
+	}
 	http.ServeFile(w, r, index)
 	return true
 }
@@ -112,16 +132,24 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleConfigDefaults(w http.ResponseWriter, r *http.Request) {
 	defaults, err := config.LoadDefaults(s.configDir)
-	if err != nil { writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()}); return }
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
 	writeJSON(w, http.StatusOK, defaults)
 }
 
-type classifyShellRequest struct { Command string `json:"command"` }
+type classifyShellRequest struct {
+	Command string `json:"command"`
+}
 
 func (s *Server) handleClassifyShell(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	var req classifyShellRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil { writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid JSON body"}); return }
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid JSON body"})
+		return
+	}
 	writeJSON(w, http.StatusOK, policy.ClassifyShell(req.Command))
 }
 
