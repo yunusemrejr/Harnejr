@@ -12,25 +12,30 @@ import (
 )
 
 type GenerateRequest struct {
-	ProviderID         string `json:"providerId"`
-	Model              string `json:"model"`
-	System             string `json:"system"`
-	Prompt             string `json:"prompt"`
-	MaxTokens          int    `json:"maxTokens"`
-	AllowBillingChange bool   `json:"allowBillingChange"`
+	ProviderID           string `json:"providerId"`
+	Model                string `json:"model"`
+	System               string `json:"system"`
+	Prompt               string `json:"prompt"`
+	MaxTokens            int    `json:"maxTokens"`
+	AllowBillingChange   bool   `json:"allowBillingChange"`
+	CacheMode            string `json:"cacheMode,omitempty"`
+	CacheStablePrefix    string `json:"cacheStablePrefix,omitempty"`
+	CacheDynamicContext  string `json:"cacheDynamicContext,omitempty"`
 }
 
 type GenerateResult struct {
-	ProviderID            string   `json:"providerId"`
-	Model                 string   `json:"model"`
-	BillingMode           string   `json:"billingMode,omitempty"`
-	Text                  string   `json:"text"`
-	StatusCode            int      `json:"statusCode,omitempty"`
-	LatencyMs             int64    `json:"latencyMs,omitempty"`
-	Tried                 []string `json:"tried,omitempty"`
-	ErrorClass            string   `json:"errorClass,omitempty"`
-	Error                 string   `json:"error,omitempty"`
-	BillingChangeRequired bool     `json:"billingChangeRequired,omitempty"`
+	ProviderID            string          `json:"providerId"`
+	Model                 string          `json:"model"`
+	BillingMode           string          `json:"billingMode,omitempty"`
+	Text                  string          `json:"text"`
+	StatusCode            int             `json:"statusCode,omitempty"`
+	LatencyMs             int64           `json:"latencyMs,omitempty"`
+	Tried                 []string        `json:"tried,omitempty"`
+	Usage                 *UsageMetrics   `json:"usage,omitempty"`
+	Cache                 *CacheTelemetry `json:"cache,omitempty"`
+	ErrorClass            string          `json:"errorClass,omitempty"`
+	Error                 string          `json:"error,omitempty"`
+	BillingChangeRequired bool            `json:"billingChangeRequired,omitempty"`
 }
 
 func FindProvider(registry Registry, id string) (ProviderProfile, bool) {
@@ -113,7 +118,8 @@ func Generate(ctx context.Context, provider ProviderProfile, req GenerateRequest
 		result.ErrorClass = "auth"
 		return result
 	}
-	body, err := generationPayload(provider, req, model)
+	body, cache, err := generationPayload(provider, req, model)
+	result.Cache = cache
 	if err != nil {
 		result.Error = err.Error()
 		result.ErrorClass = "unsupported-protocol"
@@ -155,13 +161,15 @@ func Generate(ctx context.Context, provider ProviderProfile, req GenerateRequest
 		result.ErrorClass = ClassifyHTTPStatus(resp.StatusCode)
 		return result
 	}
-	text, err := ParseGeneration(provider.Protocol, data)
+	parsed, err := ParseGenerationPayload(provider.Protocol, data)
 	if err != nil {
 		result.Error = err.Error()
 		result.ErrorClass = "parser"
 		return result
 	}
-	result.Text = strings.TrimSpace(text)
+	result.Text = strings.TrimSpace(parsed.Text)
+	result.Usage = parsed.Usage
+	applyUsageToCache(result.Cache, parsed.Usage)
 	return result
 }
 
