@@ -9,13 +9,16 @@ import (
 )
 
 type generateRequest struct {
-	ProviderID         string   `json:"providerId"`
-	Model              string   `json:"model"`
-	System             string   `json:"system"`
-	Prompt             string   `json:"prompt"`
-	MaxTokens          int      `json:"maxTokens"`
-	FallbackOrder      []string `json:"fallbackOrder"`
-	AllowBillingChange bool     `json:"allowBillingChange"`
+	ProviderID          string   `json:"providerId"`
+	Model               string   `json:"model"`
+	System              string   `json:"system"`
+	Prompt              string   `json:"prompt"`
+	MaxTokens           int      `json:"maxTokens"`
+	FallbackOrder       []string `json:"fallbackOrder"`
+	AllowBillingChange  bool     `json:"allowBillingChange"`
+	CacheMode           string   `json:"cacheMode,omitempty"`
+	CacheStablePrefix   string   `json:"cacheStablePrefix,omitempty"`
+	CacheDynamicContext string   `json:"cacheDynamicContext,omitempty"`
 }
 
 func (s *Server) handleLLMGenerate(w http.ResponseWriter, r *http.Request) {
@@ -34,6 +37,6 @@ func (s *Server) handleLLMGenerate(w http.ResponseWriter, r *http.Request) {
 	if req.ProviderID != "" {
 		order = append([]string{req.ProviderID}, order...)
 	}
-	result := providers.GenerateWithFallback(r.Context(), registry, order, providers.GenerateRequest{ProviderID: req.ProviderID, Model: req.Model, System: req.System, Prompt: req.Prompt, MaxTokens: req.MaxTokens, AllowBillingChange: req.AllowBillingChange})
+	result := providers.GenerateWithFallback(r.Context(), registry, order, providers.GenerateRequest{ProviderID: req.ProviderID, Model: req.Model, System: req.System, Prompt: req.Prompt, MaxTokens: req.MaxTokens, AllowBillingChange: req.AllowBillingChange, CacheMode: req.CacheMode, CacheStablePrefix: req.CacheStablePrefix, CacheDynamicContext: req.CacheDynamicContext})
 	writeJSON(w, http.StatusOK, result)
 }
