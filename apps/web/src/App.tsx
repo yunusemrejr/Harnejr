@@ -2,52 +2,23 @@ import { useEffect, useMemo, useState } from "react";
 
 type DoctorReport = { status: string; checks: Array<{ id: string; status: string; message: string }> };
 type UserPrompt = { content: string; path: string; updatedAt?: string };
-type ModelOption = { providerId: string; modelId: string; label: string };
 type TranscriptItem = { role: "user" | "harness"; text: string };
-type Panel = "chat" | "providers" | "commands" | "diagnostics" | "interface" | "prompts";
-
+type Panel = "session" | "providers" | "runtime" | "diagnostics" | "prompts";
 type ModelProfile = { id: string; displayName?: string; contextWindow?: number; maxOutputTokens?: number };
 type ProviderProfile = {
-  id: string;
-  displayName: string;
-  enabled: boolean;
-  protocol: string;
-  runtime: string;
-  billingMode: string;
-  baseURL: string;
-  endpoint: string;
-  apiKeyEnv?: string;
-  apiKeySecretRef?: string;
-  apiKeyFileHint?: string;
-  authMode: string;
-  authHeaderName?: string;
-  defaultModel: string;
-  models: ModelProfile[];
-  notes?: string;
+  id: string; displayName: string; enabled: boolean; protocol: string; runtime: string; billingMode: string;
+  baseURL: string; endpoint: string; apiKeyEnv?: string; apiKeySecretRef?: string; apiKeyFileHint?: string;
+  authMode: string; authHeaderName?: string; defaultModel: string; models: ModelProfile[]; notes?: string;
 };
 type ProviderRegistry = { version: number; providers: ProviderProfile[] };
 type ProviderRegistryResponse = { registry: ProviderRegistry; secrets: Record<string, boolean> };
 
-const panels: Array<{ id: Panel; label: string; description: string }> = [
-  { id: "chat", label: "Session", description: "Prompt and send" },
-  { id: "providers", label: "Providers", description: "Keys and endpoints" },
-  { id: "commands", label: "Commands", description: "Goal and runtime" },
-  { id: "diagnostics", label: "Diagnostics", description: "Doctor and probes" },
-  { id: "interface", label: "Interface", description: "Screens and variants" },
-  { id: "prompts", label: "System prompt", description: "Persistent user rules" }
-];
-
-const screenshotCatalog = [
-  {
-    title: "Session dashboard",
-    file: "docs/ui/screenshots/session-dashboard.svg",
-    purpose: "Primary message composer, workspace proof, model selection, and transcript layout."
-  },
-  {
-    title: "Provider editor",
-    file: "docs/ui/screenshots/provider-editor.svg",
-    purpose: "Provider list, editable transport contract, local-key state, and model roster."
-  }
+const panels: Array<{ id: Panel; label: string; detail: string }> = [
+  { id: "session", label: "Session", detail: "Task and transcript" },
+  { id: "providers", label: "Providers", detail: "Keys, models, endpoints" },
+  { id: "runtime", label: "Runtime", detail: "Workspace, goals, workers" },
+  { id: "diagnostics", label: "Diagnostics", detail: "Doctor, MCP, skills" },
+  { id: "prompts", label: "Prompts", detail: "System rules" }
 ];
 
 const api = {
@@ -57,21 +28,13 @@ const api = {
     return response.json();
   },
   post: async <T,>(path: string, payload: Record<string, unknown>): Promise<T> => {
-    const response = await fetch(path, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    const response = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(typeof body.error === "string" ? body.error : `${path} failed`);
     return body as T;
   },
   put: async <T,>(path: string, payload: unknown): Promise<T> => {
-    const response = await fetch(path, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    const response = await fetch(path, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(typeof body.error === "string" ? body.error : `${path} failed`);
     return body as T;
@@ -79,7 +42,7 @@ const api = {
 };
 
 export function App() {
-  const [panel, setPanel] = useState<Panel>("chat");
+  const [panel, setPanel] = useState<Panel>("session");
   const [doctor, setDoctor] = useState<DoctorReport | null>(null);
   const [registry, setRegistry] = useState<ProviderRegistry>({ version: 1, providers: [] });
   const [secrets, setSecrets] = useState<Record<string, boolean>>({});
@@ -100,588 +63,166 @@ export function App() {
 
   useEffect(() => { void loadAll(); }, []);
 
-  const modelOptions = useMemo(() => extractModelOptions(registry), [registry]);
-  const activeProvider = useMemo(
-    () => registry.providers.find((provider) => provider.id === activeProviderId) ?? registry.providers[0],
-    [registry.providers, activeProviderId]
-  );
+  const activeProvider = useMemo(() => registry.providers.find((p) => p.id === activeProviderId) ?? registry.providers[0], [registry.providers, activeProviderId]);
+  const modelOptions = useMemo(() => registry.providers.flatMap((p) => modelsOf(p).map((m) => ({ providerId: p.id, modelId: m.id, label: `${p.displayName} / ${m.displayName ?? m.id}` }))), [registry]);
   const selected = useMemo(() => parseSelectedModel(selectedModel), [selectedModel]);
-  const failingChecks = useMemo(() => doctor?.checks.filter((check) => check.status !== "pass") ?? [], [doctor]);
-  const savedKeyCount = useMemo(() => Object.values(secrets).filter(Boolean).length, [secrets]);
+  const selectedProvider = registry.providers.find((p) => p.id === selected.providerId);
+  const selectedRoute = modelsOf(selectedProvider).find((m) => m.id === selected.modelId);
+  const savedKeyCount = Object.values(secrets).filter(Boolean).length;
+  const failingChecks = doctor?.checks.filter((check) => check.status !== "pass") ?? [];
 
   async function loadAll() {
     try {
       const [doctorReport, promptReport, providerReport] = await Promise.all([
-        api.get<DoctorReport>("/api/doctor"),
-        api.get<UserPrompt>("/api/prompts/user"),
-        api.get<ProviderRegistryResponse>("/api/providers/registry")
+        api.get<DoctorReport>("/api/doctor"), api.get<UserPrompt>("/api/prompts/user"), api.get<ProviderRegistryResponse>("/api/providers/registry")
       ]);
-      setDoctor(doctorReport);
-      setPrompt(promptReport);
-      setPromptDraft(promptReport.content ?? "");
-      setRegistry(providerReport.registry);
-      setSecrets(providerReport.secrets ?? {});
-      const firstProvider = providerReport.registry.providers[0];
-      if (firstProvider) {
-        setActiveProviderId(firstProvider.id);
-        const firstModel = firstProvider.models?.[0]?.id ?? firstProvider.defaultModel;
-        setSelectedModel(`${firstProvider.id}::${firstModel}`);
-      }
+      setDoctor(doctorReport); setPrompt(promptReport); setPromptDraft(promptReport.content ?? "");
+      setRegistry(providerReport.registry); setSecrets(providerReport.secrets ?? {});
+      const first = providerReport.registry.providers[0];
+      if (first) { setActiveProviderId(first.id); setSelectedModel(`${first.id}::${first.defaultModel || modelsOf(first)[0]?.id || ""}`); }
       setMessage("Ready");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to load Harnejr");
-    }
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to load Harnejr"); }
   }
 
-  function add(role: TranscriptItem["role"], text: string) {
-    setTranscript((items) => [...items, { role, text }]);
+  function add(role: TranscriptItem["role"], text: string) { setTranscript((items) => [...items, { role, text }]); }
+  function chooseProvider(id: string) {
+    const provider = registry.providers.find((p) => p.id === id); setActiveProviderId(id);
+    if (provider) setSelectedModel(`${provider.id}::${provider.defaultModel || modelsOf(provider)[0]?.id || ""}`);
   }
-
   function updateProvider(patch: Partial<ProviderProfile>) {
     if (!activeProvider) return;
-    const providers = registry.providers.map((provider) => (
-      provider.id === activeProvider.id ? { ...provider, ...patch } : provider
-    ));
-    setRegistry({ ...registry, providers });
+    const before = activeProvider.id; const next = { ...activeProvider, ...patch };
+    setRegistry((current) => ({ ...current, providers: current.providers.map((p) => (p.id === before ? next : p)) }));
+    if (patch.id && patch.id !== before) { setActiveProviderId(patch.id); setSelectedModel(`${patch.id}::${parseSelectedModel(selectedModel).modelId}`); }
+  }
+  function addProvider() {
+    const id = uniqueId("custom-openai-compatible", registry.providers.map((p) => p.id));
+    const provider: ProviderProfile = { id, displayName: "Custom OpenAI-compatible provider", enabled: true, protocol: "openai_chat", runtime: "raw_http", billingMode: "manual", baseURL: "https://example.com/v1", endpoint: "/chat/completions", apiKeyEnv: "CUSTOM_LLM_API_KEY", authMode: "bearer", authHeaderName: "Authorization", defaultModel: "model-id", models: [{ id: "model-id", displayName: "model-id", contextWindow: 128000, maxOutputTokens: 8192 }], notes: "Replace this template with the exact provider contract." };
+    setRegistry((current) => ({ ...current, providers: [provider, ...current.providers] })); setActiveProviderId(id); setSelectedModel(`${id}::model-id`); setMessage("Provider added. Save config to persist it.");
+  }
+  function duplicateProvider() {
+    if (!activeProvider) return;
+    const id = uniqueId(`${activeProvider.id}-copy`, registry.providers.map((p) => p.id)); const copy = { ...activeProvider, id, displayName: `${activeProvider.displayName} copy` };
+    setRegistry((current) => ({ ...current, providers: [copy, ...current.providers] })); setActiveProviderId(id); setSelectedModel(`${id}::${copy.defaultModel}`); setMessage("Provider duplicated. Save config to persist it.");
+  }
+  function removeProvider() {
+    if (!activeProvider || registry.providers.length <= 1) { setMessage("At least one provider must remain"); return; }
+    const providers = registry.providers.filter((p) => p.id !== activeProvider.id); const first = providers[0];
+    setRegistry((current) => ({ ...current, providers })); setActiveProviderId(first?.id ?? ""); setSelectedModel(first ? `${first.id}::${first.defaultModel || modelsOf(first)[0]?.id || ""}` : ""); setMessage("Provider removed. Save config to persist it.");
+  }
+  function addModel() { if (activeProvider) updateProvider({ models: [...modelsOf(activeProvider), { id: uniqueId("model-id", modelsOf(activeProvider).map((m) => m.id)), contextWindow: 128000, maxOutputTokens: 8192 }] }); }
+  function updateModel(oldId: string, patch: Partial<ModelProfile>) { if (activeProvider) updateProvider({ models: modelsOf(activeProvider).map((m) => (m.id === oldId ? { ...m, ...patch } : m)) }); }
+  function removeModel(id: string) {
+    if (!activeProvider || modelsOf(activeProvider).length <= 1) { setMessage("At least one model must remain"); return; }
+    const models = modelsOf(activeProvider).filter((m) => m.id !== id); updateProvider({ models, defaultModel: activeProvider.defaultModel === id ? models[0]?.id ?? "" : activeProvider.defaultModel });
   }
 
-  async function saveProviderRegistry() {
-    setMessage("Saving provider configuration");
-    try {
-      const result = await api.put<ProviderRegistryResponse>("/api/providers/registry", registry);
-      setRegistry(result.registry);
-      setSecrets(result.secrets ?? {});
-      setMessage("Provider configuration saved");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Provider save failed");
-    }
-  }
-
+  async function saveProviderRegistry() { await act("Saving provider configuration", "Provider configuration saved", "Provider save failed", async () => { const r = await api.put<ProviderRegistryResponse>("/api/providers/registry", registry); setRegistry(r.registry); setSecrets(r.secrets ?? {}); }); }
   async function saveProviderSecret() {
-    if (!activeProvider || apiKeyDraft.trim() === "") {
-      setMessage("Enter an API key first");
-      return;
-    }
-    setMessage("Saving API key locally");
-    try {
-      await api.put("/api/providers/secret", { providerId: activeProvider.id, apiKey: apiKeyDraft });
-      setApiKeyDraft("");
-      await loadProviderRegistryOnly();
-      setMessage("API key saved to local secret file");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "API key save failed");
-    }
+    if (!activeProvider || apiKeyDraft.trim() === "") { setMessage("Enter an API key first"); return; }
+    await act("Saving API key locally", "API key saved to local secret file", "API key save failed", async () => { await api.put("/api/providers/secret", { providerId: activeProvider.id, apiKey: apiKeyDraft }); setApiKeyDraft(""); const r = await api.get<ProviderRegistryResponse>("/api/providers/registry"); setRegistry(r.registry); setSecrets(r.secrets ?? {}); });
   }
-
-  async function loadProviderRegistryOnly() {
-    const result = await api.get<ProviderRegistryResponse>("/api/providers/registry");
-    setRegistry(result.registry);
-    setSecrets(result.secrets ?? {});
-  }
-
-  async function savePrompt() {
-    setMessage("Saving user prompt");
-    try {
-      const saved = await api.put<UserPrompt>("/api/prompts/user", { content: promptDraft });
-      setPrompt(saved);
-      setPromptDraft(saved.content ?? "");
-      setMessage("User-level system prompt saved");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to save user prompt");
-    }
-  }
-
-  async function applyControls() {
-    setMessage("Applying session controls");
-    try {
-      await api.post("/api/control/apply", { workspaceRoot, sessionId, topic, goal, yolo });
-      setMessage("Session controls saved");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to apply controls");
-    }
-  }
-
-  async function startCheckpointedGoal() {
-    if (!goal.trim()) {
-      setMessage("Enter a goal first");
-      return;
-    }
-    setMessage("Starting checkpointed goal");
-    try {
-      const result = await api.post<Record<string, unknown>>("/api/goals/start", { workspaceRoot, sessionId, goal });
-      add("harness", JSON.stringify(result, null, 2));
-      setMessage("Checkpointed goal started");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Goal start failed");
-    }
-  }
-
-  async function summarizeMemory() {
-    setMessage("Building compact memory");
-    try {
-      const result = await api.post<Record<string, unknown>>("/api/memory/summary", { workspaceRoot, sessionId });
-      add("harness", JSON.stringify(result, null, 2));
-      setMessage("Compact memory updated");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Memory summary failed");
-    }
-  }
-
+  async function savePrompt() { await act("Saving user prompt", "User-level system prompt saved", "Unable to save user prompt", async () => { const saved = await api.put<UserPrompt>("/api/prompts/user", { content: promptDraft }); setPrompt(saved); setPromptDraft(saved.content ?? ""); }); }
+  async function applyControls() { await act("Applying session controls", "Session controls saved", "Unable to apply controls", async () => { await api.post("/api/control/apply", { workspaceRoot, sessionId, topic, goal, yolo }); }); }
+  async function prepareWorkspace() { await postReport("Preparing workspace", "Workspace prepared", "Workspace preparation failed", "/api/workspaces/prepare", { workspaceRoot, sessionId, userRequest: topic || goal || "Harnejr web session" }); }
+  async function startCheckpointedGoal() { if (!goal.trim()) { setMessage("Enter a goal first"); return; } await postReport("Starting checkpointed goal", "Checkpointed goal started", "Goal start failed", "/api/goals/start", { workspaceRoot, sessionId, goal }); }
+  async function summarizeMemory() { await postReport("Building compact memory", "Compact memory updated", "Memory summary failed", "/api/memory/summary", { workspaceRoot, sessionId }); }
+  async function runWorkers() { const task = sessionPrompt.trim() || goal.trim(); if (!task) { setMessage("Enter a task or goal first"); return; } await postReport("Running workers", "Workers finished", "Worker run failed", "/api/workers/run", { workspaceRoot, sessionId, task, mode: goal ? "goal" : "task", providerId: selected.providerId, model: selected.modelId, allowBillingChange }); }
+  async function runReview() { await postReport("Running review", "Review finished", "Review failed", "/api/review/run", { providerId: selected.providerId, model: selected.modelId, input: { goal: goal || sessionPrompt, evidence: transcript.map((i) => i.text).slice(-5), tests: [], subagentReviews: 2, qualityGatePass: false, providerPlanPass: false } }); }
+  async function probeActiveProvider() { if (activeProvider) await postReport("Probing selected provider", "Provider probe finished", "Provider probe failed", "/api/providers/probe", { providerId: activeProvider.id, model: activeProvider.defaultModel }); }
+  async function discoverSkills() { await postReport("Discovering skills and agents", "Skills and agents discovered", "Skill discovery failed", "/api/skills/discover", { workspaceRoot }); }
+  async function runDiagnostic(path: string, label: string) { await act(`Checking ${label}`, `${label} checked`, `${label} check failed`, async () => add("harness", JSON.stringify(await api.get<Record<string, unknown>>(path), null, 2))); }
+  async function postReport(start: string, done: string, fail: string, path: string, payload: Record<string, unknown>) { await act(start, done, fail, async () => add("harness", JSON.stringify(await api.post<Record<string, unknown>>(path, payload), null, 2))); }
+  async function act(start: string, done: string, fail: string, fn: () => Promise<void>) { setMessage(start); try { await fn(); setMessage(done); } catch (error) { setMessage(error instanceof Error ? error.message : fail); } }
   async function sendMessage() {
-    const text = sessionPrompt.trim();
-    if (!text) {
-      setMessage("Enter a message first");
-      return;
-    }
-    add("user", text);
-    setSessionPrompt("");
-    setMessage("Calling provider");
-    try {
-      const result = await api.post<Record<string, unknown>>("/api/llm/generate", {
-        providerId: selected.providerId,
-        model: selected.modelId,
-        prompt: text,
-        maxTokens: 2048,
-        allowBillingChange
-      });
+    const text = sessionPrompt.trim(); if (!text) { setMessage("Enter a message first"); return; }
+    if (!selected.providerId || !selected.modelId) { setMessage("Select a provider model first"); return; }
+    add("user", text); setSessionPrompt("");
+    await act("Calling provider", "Provider call finished", "Provider call failed", async () => {
+      const result = await api.post<Record<string, unknown>>("/api/llm/generate", { providerId: selected.providerId, model: selected.modelId, prompt: text, maxTokens: 2048, allowBillingChange });
       add("harness", typeof result.text === "string" && result.text ? result.text : JSON.stringify(result, null, 2));
-      setMessage("Provider call finished");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Provider call failed");
-    }
+    });
   }
-
   async function saveToMemory() {
-    const text = sessionPrompt.trim();
-    if (!text) {
-      setMessage("Enter text first");
-      return;
-    }
-    setMessage("Saving to memory");
-    try {
-      const result = await api.post<{ message: string }>("/api/session/message", {
-        workspaceRoot,
-        sessionId,
-        providerId: selected.providerId,
-        modelId: selected.modelId,
-        prompt: text
-      });
-      add("harness", result.message);
-      setMessage("Saved to workspace memory");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Memory save failed");
-    }
-  }
-
-  async function runWorkers() {
-    const task = sessionPrompt.trim() || goal.trim();
-    if (!task) {
-      setMessage("Enter a task or goal first");
-      return;
-    }
-    setMessage("Running workers");
-    try {
-      const result = await api.post<Record<string, unknown>>("/api/workers/run", {
-        workspaceRoot,
-        sessionId,
-        task,
-        mode: goal ? "goal" : "task",
-        providerId: selected.providerId,
-        model: selected.modelId,
-        allowBillingChange
-      });
-      add("harness", JSON.stringify(result, null, 2));
-      setMessage("Workers finished");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Worker run failed");
-    }
-  }
-
-  async function runReview() {
-    setMessage("Running review");
-    try {
-      const result = await api.post<Record<string, unknown>>("/api/review/run", {
-        providerId: selected.providerId,
-        model: selected.modelId,
-        input: {
-          goal: goal || sessionPrompt,
-          evidence: transcript.map((item) => item.text).slice(-5),
-          tests: [],
-          subagentReviews: 2,
-          qualityGatePass: false,
-          providerPlanPass: false
-        }
-      });
-      add("harness", JSON.stringify(result, null, 2));
-      setMessage("Review finished");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Review failed");
-    }
-  }
-
-  async function runDiagnostic(path: string, label: string) {
-    setMessage(`Checking ${label}`);
-    try {
-      const result = await api.get<Record<string, unknown>>(path);
-      add("harness", JSON.stringify(result, null, 2));
-      setMessage(`${label} checked`);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : `${label} check failed`);
-    }
+    const text = sessionPrompt.trim(); if (!text) { setMessage("Enter text first"); return; }
+    await act("Saving to memory", "Saved to workspace memory", "Memory save failed", async () => {
+      const result = await api.post<{ message: string }>("/api/session/message", { workspaceRoot, sessionId, providerId: selected.providerId, modelId: selected.modelId, prompt: text }); add("harness", result.message);
+    });
   }
 
   return (
-    <main className="appShell">
-      <aside className="sidebar">
-        <div className="brandBlock">
-          <h1>Harnejr</h1>
-          <p>Local coding harness</p>
-        </div>
-        <nav className="navList">
-          {panels.map((item) => (
-            <button key={item.id} className={panel === item.id ? "navItem selected" : "navItem"} onClick={() => setPanel(item.id)}>
-              <span>{item.label}</span>
-              <small>{item.description}</small>
-            </button>
-          ))}
-        </nav>
-        <div className="sideStatus">
-          <span>{message}</span>
-          <small>Doctor: {doctor?.status ?? "unknown"}</small>
-          <small>{registry.providers.length} providers · {savedKeyCount} local keys</small>
-        </div>
+    <main className="appFrame">
+      <aside className="leftRail">
+        <div className="productBlock"><span className="productKicker">Local web harness</span><h1>Harnejr</h1><p>Provider-aware agent control for Ubuntu workspaces.</p></div>
+        <nav className="panelNav" aria-label="Harnejr sections">{panels.map((item) => <button key={item.id} className={panel === item.id ? "navButton selected" : "navButton"} onClick={() => setPanel(item.id)} type="button"><span>{item.label}</span><small>{item.detail}</small></button>)}</nav>
+        <div className="railCard systemCard"><span className="railLabel">System state</span><strong>{message}</strong><small>Doctor: {doctor?.status ?? "unknown"}</small><small>{registry.providers.length} providers, {savedKeyCount} local keys</small></div>
       </aside>
 
-      <section className="mainStage">
-        {panel === "chat" ? (
-          <ChatPanel
-            modelOptions={modelOptions}
-            selectedModel={selectedModel}
-            setSelectedModel={setSelectedModel}
-            transcript={transcript}
-            sessionPrompt={sessionPrompt}
-            setSessionPrompt={setSessionPrompt}
-            sendMessage={sendMessage}
-            saveToMemory={saveToMemory}
-            allowBillingChange={allowBillingChange}
-            setAllowBillingChange={setAllowBillingChange}
-            workspaceRoot={workspaceRoot}
-            sessionId={sessionId}
-            doctorStatus={doctor?.status ?? "unknown"}
-          />
-        ) : null}
-        {panel === "providers" ? (
-          <ProviderPanel
-            registry={registry}
-            activeProvider={activeProvider}
-            activeProviderId={activeProviderId}
-            setActiveProviderId={setActiveProviderId}
-            updateProvider={updateProvider}
-            saveProviderRegistry={saveProviderRegistry}
-            saveProviderSecret={saveProviderSecret}
-            apiKeyDraft={apiKeyDraft}
-            setApiKeyDraft={setApiKeyDraft}
-            secrets={secrets}
-          />
-        ) : null}
-        {panel === "commands" ? (
-          <CommandsPanel
-            workspaceRoot={workspaceRoot}
-            setWorkspaceRoot={setWorkspaceRoot}
-            sessionId={sessionId}
-            setSessionId={setSessionId}
-            topic={topic}
-            setTopic={setTopic}
-            goal={goal}
-            setGoal={setGoal}
-            yolo={yolo}
-            setYolo={setYolo}
-            applyControls={applyControls}
-            startCheckpointedGoal={startCheckpointedGoal}
-            summarizeMemory={summarizeMemory}
-            runWorkers={runWorkers}
-            runReview={runReview}
-          />
-        ) : null}
-        {panel === "diagnostics" ? <DiagnosticsPanel doctor={doctor} failingChecks={failingChecks} runDiagnostic={runDiagnostic} /> : null}
-        {panel === "interface" ? <InterfacePanel /> : null}
-        {panel === "prompts" ? <PromptsPanel prompt={prompt} promptDraft={promptDraft} setPromptDraft={setPromptDraft} savePrompt={savePrompt} /> : null}
+      <section className="mainColumn">
+        <header className="topBar"><div className="topContext"><span>Workspace</span><strong>{workspaceRoot}</strong></div><label className="topModel">Model<select value={selectedModel} onChange={(event) => setSelectedModel(event.target.value)}>{modelOptions.map((option) => <option key={`${option.providerId}:${option.modelId}`} value={`${option.providerId}::${option.modelId}`}>{option.label}</option>)}</select></label></header>
+        <div className="panelCanvas">
+          {panel === "session" ? renderSession() : null}
+          {panel === "providers" ? renderProviders() : null}
+          {panel === "runtime" ? renderRuntime() : null}
+          {panel === "diagnostics" ? renderDiagnostics() : null}
+          {panel === "prompts" ? renderPrompts() : null}
+        </div>
       </section>
+
+      <aside className="inspectorRail">
+        <RailCard title="Selected route" facts={{ "Provider ID": selectedProvider?.id ?? "unknown", Model: selectedRoute?.displayName || selected.modelId || "unknown", Protocol: selectedProvider?.protocol ?? "unknown", Billing: selectedProvider?.billingMode ?? "unknown" }} />
+        <RailCard title="Runtime scope" facts={{ Workspace: workspaceRoot, Session: sessionId, Yolo: yolo ? "enabled for safe actions" : "disabled", "Billing fallback": allowBillingChange ? "allowed for selected call" : "blocked" }} />
+        <RailCard title="Config locations" facts={{ "Local keys": String(savedKeyCount), "User prompt": prompt.path || "not created", Goal: goal ? "defined" : "not set" }} />
+      </aside>
     </main>
   );
+
+  function renderSession() {
+    return <section className="screen sessionScreen"><Intro label="Session" title="Work surface" text="Write the task once, send it through the selected provider, and keep runtime actions explicit." />
+      <div className="conversationPane">{transcript.length === 0 ? <div className="quietState"><h3>No transcript yet</h3><p>Set provider keys, prepare a workspace, then send a task. Provider outputs and daemon reports stay here.</p></div> : transcript.map((item, index) => <article className={item.role === "user" ? "messageBubble userBubble" : "messageBubble harnessBubble"} key={`${item.role}-${index}`}><span>{item.role === "user" ? "User" : "Harnejr"}</span><p>{item.text}</p></article>)}</div>
+      <footer className="composerPanel"><textarea value={sessionPrompt} onChange={(event) => setSessionPrompt(event.target.value)} placeholder="Ask Harnejr to inspect, patch, test, review, or plan against the current workspace." /><div className="composerFooter"><label className="checkLine"><input type="checkbox" checked={allowBillingChange} onChange={(event) => setAllowBillingChange(event.target.checked)} />Allow billing-mode fallback for this call</label><div className="buttonRow"><button className="secondaryButton" type="button" onClick={saveToMemory}>Save memory</button><button className="secondaryButton" type="button" onClick={runWorkers}>Workers</button><button className="secondaryButton" type="button" onClick={runReview}>Review</button><button className="primaryButton" type="button" onClick={sendMessage}>Send</button></div></div></footer>
+    </section>;
+  }
+
+  function renderProviders() {
+    const p = activeProvider;
+    return <section className="screen providerScreen"><header className="screenIntro withActions"><div><span className="sectionLabel">Providers</span><h2>Transport contracts</h2><p>Providers are real endpoint, auth, billing, runtime, model namespace, and local-key contracts.</p></div><div className="buttonRow"><button className="secondaryButton" type="button" onClick={addProvider}>Add provider</button><button className="primaryButton" type="button" onClick={saveProviderRegistry}>Save config</button></div></header>
+      <div className="providerWorkbench"><aside className="providerIndex">{registry.providers.map((item) => <button key={item.id} className={item.id === activeProviderId ? "providerTile selected" : "providerTile"} onClick={() => chooseProvider(item.id)} type="button"><strong>{item.displayName}</strong><span>{item.id}</span><small>{item.billingMode || "billing unknown"}</small><small>{secrets[item.id] ? "local key saved" : "local key missing"}</small></button>)}</aside>
+        {p ? <div className="providerEditor"><div className="contractHeader"><div><span className="sectionLabel">Selected provider</span><h3>{p.displayName}</h3></div><div className="buttonRow"><button className="secondaryButton" type="button" onClick={probeActiveProvider}>Probe</button><button className="secondaryButton" type="button" onClick={duplicateProvider}>Duplicate</button><button className="secondaryButton" type="button" onClick={removeProvider}>Remove</button></div></div>
+          <div className="editorSection"><h4>Identity</h4><div className="formGrid twoCols"><Field label="Provider ID" value={p.id} onChange={(v) => updateProvider({ id: v })} /><Field label="Display name" value={p.displayName} onChange={(v) => updateProvider({ displayName: v })} /><label>Enabled<select value={p.enabled ? "true" : "false"} onChange={(event) => updateProvider({ enabled: event.target.value === "true" })}><option value="true">Enabled</option><option value="false">Disabled</option></select></label><Field label="Billing mode" value={p.billingMode} onChange={(v) => updateProvider({ billingMode: v })} /></div></div>
+          <div className="editorSection"><h4>Endpoint and call format</h4><div className="formGrid twoCols"><Field label="Base URL" value={p.baseURL} onChange={(v) => updateProvider({ baseURL: v })} /><Field label="Endpoint" value={p.endpoint} onChange={(v) => updateProvider({ endpoint: v })} /><Field label="Protocol" value={p.protocol} onChange={(v) => updateProvider({ protocol: v })} /><Field label="Runtime" value={p.runtime} onChange={(v) => updateProvider({ runtime: v })} /></div></div>
+          <div className="editorSection"><h4>Authentication</h4><div className="formGrid twoCols"><Field label="Auth mode" value={p.authMode} onChange={(v) => updateProvider({ authMode: v })} /><Field label="Auth header" value={p.authHeaderName ?? ""} onChange={(v) => updateProvider({ authHeaderName: v })} /><Field label="Environment variable" value={p.apiKeyEnv ?? ""} onChange={(v) => updateProvider({ apiKeyEnv: v })} /><Field label="Secret file hint" value={p.apiKeyFileHint ?? ""} onChange={(v) => updateProvider({ apiKeyFileHint: v })} /></div><div className="keyVault"><div><strong>Local API key</strong><p>{secrets[p.id] ? "The daemon has a saved local key for this provider." : "No local key is saved for this provider."}</p></div><input type="password" value={apiKeyDraft} onChange={(event) => setApiKeyDraft(event.target.value)} placeholder="Paste API key. Browser storage is not used." /><button className="primaryButton" type="button" onClick={saveProviderSecret}>Save key</button></div></div>
+          <div className="editorSection"><div className="sectionTitleRow"><h4>Models</h4><button className="secondaryButton" type="button" onClick={addModel}>Add model</button></div><Field label="Default model" value={p.defaultModel} onChange={(v) => updateProvider({ defaultModel: v })} /> <div className="modelEditorList">{modelsOf(p).map((m) => <div className="modelEditorRow" key={m.id}><Field label="Model ID" value={m.id} onChange={(v) => updateModel(m.id, { id: v })} /><Field label="Name" value={m.displayName ?? ""} onChange={(v) => updateModel(m.id, { displayName: v })} /><Field label="Context" value={m.contextWindow ?? ""} type="number" onChange={(v) => updateModel(m.id, { contextWindow: parseOptionalNumber(v) })} /><Field label="Output" value={m.maxOutputTokens ?? ""} type="number" onChange={(v) => updateModel(m.id, { maxOutputTokens: parseOptionalNumber(v) })} /><button className="secondaryButton" type="button" onClick={() => removeModel(m.id)}>Remove</button></div>)}</div></div>
+          <div className="editorSection"><h4>Notes</h4><textarea value={p.notes ?? ""} onChange={(event) => updateProvider({ notes: event.target.value })} placeholder="Document endpoint quirks, subscription path, tool support, or model caveats." /></div>
+        </div> : null}</div>
+    </section>;
+  }
+
+  function renderRuntime() {
+    return <section className="screen runtimeScreen"><Intro label="Runtime" title="Workspace and goal control" text="Session state, goal checkpoints, compact memory, workers, and review are separated from chat." />
+      <div className="runtimeGrid"><div className="editorSection"><h4>Session scope</h4><div className="formGrid twoCols"><Field label="Workspace root" value={workspaceRoot} onChange={setWorkspaceRoot} /><Field label="Session ID" value={sessionId} onChange={setSessionId} /><Field label="Topic" value={topic} onChange={setTopic} wide /><label className="checkLine wideField"><input type="checkbox" checked={yolo} onChange={(event) => setYolo(event.target.checked)} />Yolo for safe workspace work</label></div></div><div className="editorSection goalForm"><h4>Checkpointed goal</h4><textarea value={goal} onChange={(event) => setGoal(event.target.value)} placeholder="Define the goal. The daemon turns this into deterministic checkpoints." /></div></div>
+      <div className="actionMatrix"><Action title="Prepare workspace" text="Find or initialize the safe project root and create memory files." action="Prepare" onClick={prepareWorkspace} /><Action title="Apply controls" text="Persist workspace, session, topic, goal, and safe autonomy state." action="Apply" onClick={applyControls} /><Action title="Start goal" text="Create scope, plan, implement, verify, review, and complete checkpoints." action="Start" onClick={startCheckpointedGoal} /><Action title="Compact memory" text="Write a concise continuation summary without raw history bloat." action="Compact" onClick={summarizeMemory} /><Action title="Worker pass" text="Run provider-backed workers against the current task or goal." action="Run" onClick={runWorkers} /><Action title="Completion review" text="Challenge the current evidence through the review path." action="Review" onClick={runReview} /></div>
+    </section>;
+  }
+
+  function renderDiagnostics() {
+    return <section className="screen diagnosticsScreen"><header className="screenIntro withActions"><div><span className="sectionLabel">Diagnostics</span><h2>Runtime proof</h2><p>The daemon result is the source of truth. Interface labels are not proof.</p></div><div className="buttonRow"><button className="secondaryButton" type="button" onClick={() => runDiagnostic("/api/doctor", "Doctor")}>Doctor</button><button className="secondaryButton" type="button" onClick={() => runDiagnostic("/api/providers/probe", "providers")}>Providers</button><button className="secondaryButton" type="button" onClick={() => runDiagnostic("/api/mcp/check", "MCP")}>MCP</button><button className="secondaryButton" type="button" onClick={discoverSkills}>Skills</button></div></header>
+      <div className="diagnosticSummary"><Metric label="Doctor" value={doctor?.status ?? "unknown"} /><Metric label="Checks" value={String(doctor?.checks.length ?? 0)} /><Metric label="Failing" value={String(failingChecks.length)} /></div>
+      <div className="checkTable">{doctor?.checks.map((check) => <div key={check.id} className="checkRowItem"><strong>{check.id}</strong><span>{check.status}</span><p>{check.message}</p></div>)}</div>
+    </section>;
+  }
+
+  function renderPrompts() {
+    return <section className="screen promptsScreen"><header className="screenIntro withActions"><div><span className="sectionLabel">Prompts</span><h2>User-level additive prompt</h2><p>This prompt stays below daemon policy. It cannot override safety, routing, or workspace boundaries.</p><small>{prompt.path || "Prompt file has not been created yet"}</small></div><button className="primaryButton" type="button" onClick={savePrompt}>Save prompt</button></header><textarea className="promptEditor" value={promptDraft} onChange={(event) => setPromptDraft(event.target.value)} placeholder="Add coding standards, review expectations, naming rules, project preferences, and personal operating constraints." /></section>;
+  }
 }
 
-function ChatPanel(props: {
-  modelOptions: ModelOption[];
-  selectedModel: string;
-  setSelectedModel: (v: string) => void;
-  transcript: TranscriptItem[];
-  sessionPrompt: string;
-  setSessionPrompt: (v: string) => void;
-  sendMessage: () => void;
-  saveToMemory: () => void;
-  allowBillingChange: boolean;
-  setAllowBillingChange: (v: boolean) => void;
-  workspaceRoot: string;
-  sessionId: string;
-  doctorStatus: string;
-}) {
-  return (
-    <section className="screen chatScreen">
-      <header className="screenHeader sessionHeader">
-        <div>
-          <p className="eyebrow">Session</p>
-          <h2>Message Harnejr</h2>
-          <p>One composer, one primary action. Runtime controls stay in their own panel.</p>
-        </div>
-        <div className="proofGrid">
-          <ProofItem label="Workspace" value={props.workspaceRoot} />
-          <ProofItem label="Session" value={props.sessionId} />
-          <ProofItem label="Doctor" value={props.doctorStatus} />
-        </div>
-      </header>
-
-      <div className="sessionControls">
-        <label className="compactField">Model
-          <select value={props.selectedModel} onChange={(event) => props.setSelectedModel(event.target.value)}>
-            {props.modelOptions.map((option) => (
-              <option key={`${option.providerId}:${option.modelId}`} value={`${option.providerId}::${option.modelId}`}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="checkRow billingCheck">
-          <input type="checkbox" checked={props.allowBillingChange} onChange={(event) => props.setAllowBillingChange(event.target.checked)} />
-          Allow billing-mode fallback
-        </label>
-      </div>
-
-      <div className="conversation">
-        {props.transcript.length === 0 ? (
-          <div className="emptyState">
-            <h3>No transcript yet</h3>
-            <p>Configure providers first, then send a task. Responses and tool reports will appear here.</p>
-          </div>
-        ) : props.transcript.map((item, index) => (
-          <article className={item.role === "user" ? "bubble userBubble" : "bubble harnessBubble"} key={`${item.role}-${index}`}>
-            <strong>{item.role === "user" ? "You" : "Harnejr"}</strong>
-            <p>{item.text}</p>
-          </article>
-        ))}
-      </div>
-
-      <footer className="composer">
-        <textarea
-          value={props.sessionPrompt}
-          onChange={(event) => props.setSessionPrompt(event.target.value)}
-          placeholder="Describe the coding task, inspection, patch, or review."
-        />
-        <div className="composerActions">
-          <button className="secondaryButton" type="button" onClick={props.saveToMemory}>Save to memory</button>
-          <button className="primaryButton" type="button" onClick={props.sendMessage}>Send</button>
-        </div>
-      </footer>
-    </section>
-  );
-}
-
-function ProviderPanel(props: {
-  registry: ProviderRegistry;
-  activeProvider?: ProviderProfile;
-  activeProviderId: string;
-  setActiveProviderId: (v: string) => void;
-  updateProvider: (patch: Partial<ProviderProfile>) => void;
-  saveProviderRegistry: () => void;
-  saveProviderSecret: () => void;
-  apiKeyDraft: string;
-  setApiKeyDraft: (v: string) => void;
-  secrets: Record<string, boolean>;
-}) {
-  const provider = props.activeProvider;
-  return (
-    <section className="screen providerScreen">
-      <header className="screenHeader">
-        <div>
-          <p className="eyebrow">Providers</p>
-          <h2>Models, endpoints, and local API keys</h2>
-          <p>Every provider remains an explicit transport contract: protocol, endpoint, auth, billing path, and model namespace.</p>
-        </div>
-        <button className="primaryButton" onClick={props.saveProviderRegistry}>Save config</button>
-      </header>
-
-      <div className="providerLayout">
-        <aside className="providerList">
-          {props.registry.providers.map((item) => (
-            <button key={item.id} className={item.id === props.activeProviderId ? "providerItem selected" : "providerItem"} onClick={() => props.setActiveProviderId(item.id)}>
-              <strong>{item.displayName}</strong>
-              <span>{item.id}</span>
-              <small>{props.secrets[item.id] ? "key saved" : "no local key"}</small>
-            </button>
-          ))}
-        </aside>
-
-        {provider ? (
-          <div className="providerEditor">
-            <div className="providerSummary">
-              <ProofItem label="Billing" value={provider.billingMode} />
-              <ProofItem label="Protocol" value={provider.protocol} />
-              <ProofItem label="Runtime" value={provider.runtime} />
-            </div>
-            <div className="formGrid twoCols">
-              <label>Display name<input value={provider.displayName} onChange={(event) => props.updateProvider({ displayName: event.target.value })} /></label>
-              <label>Enabled<select value={provider.enabled ? "true" : "false"} onChange={(event) => props.updateProvider({ enabled: event.target.value === "true" })}><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
-              <label>Base URL<input value={provider.baseURL} onChange={(event) => props.updateProvider({ baseURL: event.target.value })} /></label>
-              <label>Endpoint<input value={provider.endpoint} onChange={(event) => props.updateProvider({ endpoint: event.target.value })} /></label>
-              <label>Protocol<input value={provider.protocol} onChange={(event) => props.updateProvider({ protocol: event.target.value })} /></label>
-              <label>Billing mode<input value={provider.billingMode} onChange={(event) => props.updateProvider({ billingMode: event.target.value })} /></label>
-              <label>Auth mode<input value={provider.authMode} onChange={(event) => props.updateProvider({ authMode: event.target.value })} /></label>
-              <label>Auth header<input value={provider.authHeaderName ?? ""} onChange={(event) => props.updateProvider({ authHeaderName: event.target.value })} /></label>
-              <label>Default model<input value={provider.defaultModel} onChange={(event) => props.updateProvider({ defaultModel: event.target.value })} /></label>
-              <label>Env var<input value={provider.apiKeyEnv ?? ""} onChange={(event) => props.updateProvider({ apiKeyEnv: event.target.value })} /></label>
-            </div>
-            <div className="keyBox">
-              <div><h3>API key</h3><p>{props.secrets[provider.id] ? "A local key is saved for this provider." : "No local key saved for this provider."}</p></div>
-              <input type="password" value={props.apiKeyDraft} onChange={(event) => props.setApiKeyDraft(event.target.value)} placeholder="Paste API key. The daemon writes the local secret file." />
-              <button className="primaryButton" onClick={props.saveProviderSecret}>Save key</button>
-            </div>
-            <div className="modelList">
-              <h3>Models</h3>
-              {provider.models.map((model) => (
-                <div className="modelRow" key={model.id}>
-                  <strong>{model.displayName || model.id}</strong>
-                  <span>{model.id}</span>
-                  <small>{model.contextWindow ? `${model.contextWindow} ctx` : "context unknown"} {model.maxOutputTokens ? `· ${model.maxOutputTokens} out` : ""}</small>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
-function CommandsPanel(props: {
-  workspaceRoot: string;
-  setWorkspaceRoot: (v: string) => void;
-  sessionId: string;
-  setSessionId: (v: string) => void;
-  topic: string;
-  setTopic: (v: string) => void;
-  goal: string;
-  setGoal: (v: string) => void;
-  yolo: boolean;
-  setYolo: (v: boolean) => void;
-  applyControls: () => void;
-  startCheckpointedGoal: () => void;
-  summarizeMemory: () => void;
-  runWorkers: () => void;
-  runReview: () => void;
-}) {
-  return (
-    <section className="screen">
-      <header className="screenHeader">
-        <div><p className="eyebrow">Commands</p><h2>Goal and runtime controls</h2><p>These controls mutate daemon-owned session state. They are not prompt decorations.</p></div>
-      </header>
-      <div className="formGrid twoCols commandForm">
-        <label>Workspace root<input value={props.workspaceRoot} onChange={(event) => props.setWorkspaceRoot(event.target.value)} /></label>
-        <label>Session ID<input value={props.sessionId} onChange={(event) => props.setSessionId(event.target.value)} /></label>
-        <label>Topic<input value={props.topic} onChange={(event) => props.setTopic(event.target.value)} /></label>
-        <label className="checkRow inlineCheck"><input type="checkbox" checked={props.yolo} onChange={(event) => props.setYolo(event.target.checked)} />Yolo for safe workspace work</label>
-        <label className="wideField">Goal<textarea value={props.goal} onChange={(event) => props.setGoal(event.target.value)} rows={6} placeholder="Define a goal that will be converted into checkpoints." /></label>
-      </div>
-      <div className="actionDeck">
-        <button className="primaryButton" onClick={props.startCheckpointedGoal}>Start checkpointed goal</button>
-        <button className="secondaryButton" onClick={props.applyControls}>Apply controls</button>
-        <button className="secondaryButton" onClick={props.summarizeMemory}>Compact memory</button>
-        <button className="secondaryButton" onClick={props.runWorkers}>Run workers</button>
-        <button className="secondaryButton" onClick={props.runReview}>Run review</button>
-      </div>
-    </section>
-  );
-}
-
-function DiagnosticsPanel(props: {
-  doctor: DoctorReport | null;
-  failingChecks: Array<{ id: string; status: string; message: string }>;
-  runDiagnostic: (path: string, label: string) => void;
-}) {
-  return (
-    <section className="screen">
-      <header className="screenHeader"><div><p className="eyebrow">Diagnostics</p><h2>Runtime health</h2><p>Use these checks to prove runtime state instead of trusting interface text.</p></div></header>
-      <div className="diagnosticGrid">
-        <article className="statusCard"><h3>Doctor</h3><p>{props.doctor?.status ?? "unknown"}</p><small>{props.failingChecks.length} failing checks</small></article>
-        <button className="secondaryButton" onClick={() => props.runDiagnostic("/api/doctor", "Doctor")}>Run Doctor</button>
-        <button className="secondaryButton" onClick={() => props.runDiagnostic("/api/providers/probe", "providers")}>Provider probe</button>
-        <button className="secondaryButton" onClick={() => props.runDiagnostic("/api/mcp/check", "MCP")}>MCP check</button>
-      </div>
-      <div className="checkList">
-        {props.doctor?.checks.map((check) => (
-          <div key={check.id} className="checkItem"><strong>{check.id}</strong><span>{check.status}</span><p>{check.message}</p></div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function InterfacePanel() {
-  return (
-    <section className="screen">
-      <header className="screenHeader">
-        <div>
-          <p className="eyebrow">Interface</p>
-          <h2>Screenshot catalog and UI rules</h2>
-          <p>The repository now keeps versioned interface captures so UI changes can be reviewed instead of described by vague claims.</p>
-        </div>
-      </header>
-      <div className="interfaceGrid">
-        {screenshotCatalog.map((item) => (
-          <article className="screenshotCard" key={item.file}>
-            <div className="screenshotFrame"><img src={`/${item.file}`} alt={`${item.title} screenshot`} /></div>
-            <h3>{item.title}</h3>
-            <p>{item.purpose}</p>
-            <small>{item.file}</small>
-          </article>
-        ))}
-      </div>
-      <div className="uiRules">
-        <h3>Visual contract</h3>
-        <p>Gray and cream only. No gradients, glows, blinking indicators, emojis as icons, fake status badges, or decorative labels.</p>
-      </div>
-    </section>
-  );
-}
-
-function PromptsPanel(props: { prompt: UserPrompt; promptDraft: string; setPromptDraft: (v: string) => void; savePrompt: () => void }) {
-  return (
-    <section className="screen">
-      <header className="screenHeader">
-        <div>
-          <p className="eyebrow">System prompt</p>
-          <h2>User-level additive prompt</h2>
-          <p>Saved by the daemon and added to Harnejr's core prompt. It cannot override daemon safety policy.</p>
-          <small>{props.prompt.path || "not created yet"}</small>
-        </div>
-        <button className="primaryButton" onClick={props.savePrompt}>Save prompt</button>
-      </header>
-      <textarea className="largeEditor" value={props.promptDraft} onChange={(event) => props.setPromptDraft(event.target.value)} placeholder="Add your personal operating rules, coding standards, and review expectations." />
-    </section>
-  );
-}
-
-function ProofItem(props: { label: string; value: string }) {
-  return <div className="proofItem"><span>{props.label}</span><strong>{props.value || "unknown"}</strong></div>;
-}
-
-function extractModelOptions(registry: ProviderRegistry): ModelOption[] {
-  return registry.providers.flatMap((provider) => {
-    const models = Array.isArray(provider.models) && provider.models.length > 0 ? provider.models : [{ id: provider.defaultModel }];
-    return models.map((model) => ({ providerId: provider.id, modelId: model.id, label: `${provider.displayName} / ${model.displayName ?? model.id}` }));
-  });
-}
-
-function parseSelectedModel(value: string): { providerId: string; modelId: string } {
-  const [providerId = "", modelId = ""] = value.split("::");
-  return { providerId, modelId };
-}
+function Intro(props: { label: string; title: string; text: string }) { return <header className="screenIntro"><span className="sectionLabel">{props.label}</span><h2>{props.title}</h2><p>{props.text}</p></header>; }
+function Field(props: { label: string; value: string | number; onChange: (value: string) => void; type?: string; wide?: boolean }) { return <label className={props.wide ? "wideField" : undefined}>{props.label}<input type={props.type ?? "text"} value={props.value} onChange={(event) => props.onChange(event.target.value)} /></label>; }
+function Action(props: { title: string; text: string; action: string; onClick: () => void }) { return <article className="actionCard"><h3>{props.title}</h3><p>{props.text}</p><button className="secondaryButton" type="button" onClick={props.onClick}>{props.action}</button></article>; }
+function Metric(props: { label: string; value: string }) { return <article className="metricCard"><span>{props.label}</span><strong>{props.value}</strong></article>; }
+function RailCard(props: { title: string; facts: Record<string, string> }) { return <div className="railCard"><span className="railLabel">{props.title}</span><dl className="factList">{Object.entries(props.facts).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}</dl></div>; }
+function modelsOf(provider?: ProviderProfile): ModelProfile[] { if (!provider) return []; return Array.isArray(provider.models) && provider.models.length > 0 ? provider.models : [{ id: provider.defaultModel }]; }
+function parseSelectedModel(value: string): { providerId: string; modelId: string } { const [providerId = "", modelId = ""] = value.split("::"); return { providerId, modelId }; }
+function uniqueId(base: string, existing: string[]): string { const taken = new Set(existing); if (!taken.has(base)) return base; for (let i = 2; i < 1000; i += 1) { const candidate = `${base}-${i}`; if (!taken.has(candidate)) return candidate; } return `${base}-${Date.now()}`; }
+function parseOptionalNumber(value: string): number | undefined { const trimmed = value.trim(); if (!trimmed) return undefined; const parsed = Number(trimmed); return Number.isFinite(parsed) ? parsed : undefined; }
