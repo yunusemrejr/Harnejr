@@ -17,7 +17,9 @@ Harnejr is being moved from scaffold to enforceable runtime behavior. This docum
 | Event ledger | Runtime actions append redacted JSONL events under `.harnejr/events.jsonl`. |
 | Provider registry | Provider defaults are statically validated for IDs, aliases, auth refs, endpoints, model defaults, duplicate models, and impossible limits. |
 | Provider probes | Static probes exist; opt-in live probes require one explicit provider. |
+| Provider routing | `/api/providers/route` scores enabled providers by task type, requested capabilities, auth readiness, cost class, model metadata, and explicit preferred/excluded lists. |
 | Provider generation | `/api/llm/generate` can call configured providers and blocks silent billing-mode fallback unless explicitly allowed. |
+| SDK provider bridge | The Go provider engine can delegate `node_ai_sdk` profiles to the Node sidecar, which uses Vercel AI SDK, OpenAI-compatible provider SDK, Anthropic SDK, and Zod while keeping daemon authority. |
 | DeepSeek cache discipline | Prompt-cache-capable DeepSeek routes get a stable-prefix message layout, prefix hashes, volatile-prefix warnings, and parsed `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens` telemetry. |
 | Streaming generation | `/api/llm/stream` streams one explicit provider as SSE and normalizes common OpenAI and Ollama chunks. |
 | Checkpointed goals | `/api/goals/start`, `/api/goals/status`, and `/api/goals/checkpoint` persist a goal as verifiable checkpoints before completion review. |
@@ -37,7 +39,8 @@ Harnejr is being moved from scaffold to enforceable runtime behavior. This docum
 | Area | Remaining gap |
 | --- | --- |
 | Streaming parser depth | SSE exists and emits usage/cache data when providers send it, but provider-specific tool-call and final-event parsers need more coverage. |
-| Provider fallback policy | Billing-mode protection exists, but cooldown ledgers, quota budgets, and retry policies need more depth. |
+| Provider fallback policy | Billing-mode protection and route scoring exist, but cooldown ledgers, quota budgets, and persisted provider-health state need more depth. |
+| SDK runtime installation | The sidecar is implemented and typechecked, but installer packaging and automatic sidecar-path wiring need a final install-flow pass before SDK runtimes should be default. |
 | Shell sandboxing | Bubblewrap is preferred when present, but full seccomp/container hardening is not complete. |
 | Edit engine | Locked text replacement exists; multi-hunk diff application and dry-run previews need more work. |
 | Worker execution | Provider-backed workers exist, but result grading, retries, and long-run ledgers are still first-pass. |
