@@ -6,11 +6,16 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "provider:generate": "node dist/index.js generate"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "latest",
+    "@ai-sdk/openai-compatible": "latest",
     "@harnejr/shared": "workspace:*",
-    "typescript": "latest"
+    "ai": "latest",
+    "typescript": "latest",
+    "zod": "latest"
   },
   "devDependencies": {}
 }
