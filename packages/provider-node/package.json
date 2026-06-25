@@ -17,5 +17,7 @@
     "typescript": "latest",
     "zod": "latest"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@types/node": "latest"
+  }
 }
