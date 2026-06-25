@@ -12,12 +12,14 @@ import (
 )
 
 type StreamEvent struct {
-	ProviderID string `json:"providerId"`
-	Model      string `json:"model"`
-	Text       string `json:"text,omitempty"`
-	Reasoning  string `json:"reasoning,omitempty"`
-	Done       bool   `json:"done"`
-	Error      string `json:"error,omitempty"`
+	ProviderID string          `json:"providerId"`
+	Model      string          `json:"model"`
+	Text       string          `json:"text,omitempty"`
+	Reasoning  string          `json:"reasoning,omitempty"`
+	Usage      *UsageMetrics   `json:"usage,omitempty"`
+	Cache      *CacheTelemetry `json:"cache,omitempty"`
+	Done       bool            `json:"done"`
+	Error      string          `json:"error,omitempty"`
 }
 
 func Stream(ctx context.Context, provider ProviderProfile, req GenerateRequest, emit func(StreamEvent) error) GenerateResult {
@@ -31,7 +33,8 @@ func Stream(ctx context.Context, provider ProviderProfile, req GenerateRequest, 
 		_ = emit(StreamEvent{ProviderID: provider.ID, Model: model, Error: result.Error, Done: true})
 		return result
 	}
-	body, err := generationPayload(provider, req, model)
+	body, cache, err := generationPayload(provider, req, model)
+	result.Cache = cache
 	if err != nil { result.Error = err.Error(); result.ErrorClass = "unsupported-protocol"; _ = emit(StreamEvent{ProviderID: provider.ID, Model: model, Error: result.Error, Done: true}); return result }
 	body["stream"] = true
 	payload, err := json.Marshal(body)
@@ -65,17 +68,22 @@ func Stream(ctx context.Context, provider ProviderProfile, req GenerateRequest, 
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" { continue }
 		chunk, done := normalizeStreamLine(provider.Protocol, line)
-		if chunk.Text != "" || chunk.Reasoning != "" {
+		if chunk.Text != "" || chunk.Reasoning != "" || chunk.Usage != nil {
 			chunk.ProviderID = provider.ID
 			chunk.Model = model
+			chunk.Cache = result.Cache
 			text.WriteString(chunk.Text)
+			if chunk.Usage != nil {
+				result.Usage = chunk.Usage
+				applyUsageToCache(result.Cache, chunk.Usage)
+			}
 			if err := emit(chunk); err != nil { result.Error = err.Error(); result.ErrorClass = "stream"; return result }
 		}
 		if done { break }
 	}
 	if err := scanner.Err(); err != nil { result.Error = err.Error(); result.ErrorClass = "stream"; return result }
 	result.Text = text.String()
-	_ = emit(StreamEvent{ProviderID: provider.ID, Model: model, Done: true})
+	_ = emit(StreamEvent{ProviderID: provider.ID, Model: model, Usage: result.Usage, Cache: result.Cache, Done: true})
 	return result
 }
 
@@ -84,20 +92,24 @@ func normalizeStreamLine(protocol Protocol, line string) (StreamEvent, bool) {
 	if line == "[DONE]" { return StreamEvent{Done: true}, true }
 	var raw map[string]any
 	if err := json.Unmarshal([]byte(line), &raw); err != nil { return StreamEvent{}, false }
+	usage := parseUsage(raw["usage"])
 	if protocol == ProtocolOllamaNative {
 		if msg, ok := raw["message"].(map[string]any); ok {
-			if content, ok := msg["content"].(string); ok { return StreamEvent{Text: content}, false }
+			if content, ok := msg["content"].(string); ok { return StreamEvent{Text: content, Usage: usage}, false }
 		}
-		if done, _ := raw["done"].(bool); done { return StreamEvent{Done: true}, true }
+		if done, _ := raw["done"].(bool); done { return StreamEvent{Usage: usage, Done: true}, true }
 	}
 	if choices, ok := raw["choices"].([]any); ok && len(choices) > 0 {
 		if choice, ok := choices[0].(map[string]any); ok {
 			if delta, ok := choice["delta"].(map[string]any); ok {
 				text, _ := delta["content"].(string)
 				reasoning, _ := delta["reasoning_content"].(string)
-				return StreamEvent{Text: text, Reasoning: reasoning}, false
+				return StreamEvent{Text: text, Reasoning: reasoning, Usage: usage}, false
 			}
 		}
+	}
+	if usage != nil {
+		return StreamEvent{Usage: usage}, false
 	}
 	return StreamEvent{}, false
 }
