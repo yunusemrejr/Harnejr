@@ -18,6 +18,7 @@ Harnejr is being moved from scaffold to enforceable runtime behavior. This docum
 | Provider registry | Provider defaults are statically validated for IDs, aliases, auth refs, endpoints, model defaults, duplicate models, and impossible limits. |
 | Provider probes | Static probes exist; opt-in live probes require one explicit provider. |
 | Provider generation | `/api/llm/generate` can call configured providers and blocks silent billing-mode fallback unless explicitly allowed. |
+| DeepSeek cache discipline | Prompt-cache-capable DeepSeek routes get a stable-prefix message layout, prefix hashes, volatile-prefix warnings, and parsed `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens` telemetry. |
 | Streaming generation | `/api/llm/stream` streams one explicit provider as SSE and normalizes common OpenAI and Ollama chunks. |
 | Checkpointed goals | `/api/goals/start`, `/api/goals/status`, and `/api/goals/checkpoint` persist a goal as verifiable checkpoints before completion review. |
 | Goal/topic state | Goal, topic, loop, and yolo state persist into workspace memory. |
@@ -35,7 +36,7 @@ Harnejr is being moved from scaffold to enforceable runtime behavior. This docum
 
 | Area | Remaining gap |
 | --- | --- |
-| Streaming parser depth | SSE exists, but provider-specific usage, tool-call, reasoning, and final-event parsers need more coverage. |
+| Streaming parser depth | SSE exists and emits usage/cache data when providers send it, but provider-specific tool-call and final-event parsers need more coverage. |
 | Provider fallback policy | Billing-mode protection exists, but cooldown ledgers, quota budgets, and retry policies need more depth. |
 | Shell sandboxing | Bubblewrap is preferred when present, but full seccomp/container hardening is not complete. |
 | Edit engine | Locked text replacement exists; multi-hunk diff application and dry-run previews need more work. |
