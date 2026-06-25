@@ -2,7 +2,7 @@ package providers
 
 import "fmt"
 
-func generationPayload(provider ProviderProfile, req GenerateRequest, model string) (map[string]any, error) {
+func generationPayload(provider ProviderProfile, req GenerateRequest, model string) (map[string]any, *CacheTelemetry, error) {
 	limit := req.MaxTokens
 	if limit <= 0 {
 		limit = 1024
@@ -19,9 +19,17 @@ func generationPayload(provider ProviderProfile, req GenerateRequest, model stri
 			body[key] = value
 		}
 	}
+	var cache *CacheTelemetry
 	switch provider.Protocol {
 	case ProtocolOpenAIChat:
-		body["messages"] = chatMessages(req)
+		messages := chatMessages(req)
+		if optimized, report := cacheOptimizedChatMessages(provider, req, model); report != nil {
+			cache = report
+			if report.Applied {
+				messages = optimized
+			}
+		}
+		body["messages"] = messages
 		body["stream"] = false
 		body["max_tokens"] = limit
 	case ProtocolOpenAIResponses:
@@ -41,9 +49,9 @@ func generationPayload(provider ProviderProfile, req GenerateRequest, model stri
 		body["messages"] = []map[string]string{{"role": "user", "content": req.Prompt}}
 		body["max_tokens"] = limit
 	default:
-		return nil, fmt.Errorf("generation unsupported for protocol %s", provider.Protocol)
+		return nil, nil, fmt.Errorf("generation unsupported for protocol %s", provider.Protocol)
 	}
-	return body, nil
+	return body, cache, nil
 }
 
 func chatMessages(req GenerateRequest) []map[string]string {
