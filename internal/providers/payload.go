@@ -3,21 +3,12 @@ package providers
 import "fmt"
 
 func generationPayload(provider ProviderProfile, req GenerateRequest, model string) (map[string]any, *CacheTelemetry, error) {
-	limit := req.MaxTokens
-	if limit <= 0 {
-		limit = 1024
-	}
+	limit := effectiveMaxTokens(provider, req, model)
 	body := map[string]any{"model": model}
-	for key, value := range provider.RequestDefaults {
-		body[key] = value
-	}
-	for key, value := range provider.ExtraBody {
-		body[key] = value
-	}
+	mergeMap(body, provider.RequestDefaults)
+	mergeMap(body, provider.ExtraBody)
 	if defaults, ok := provider.ModelRequestDefaults[model]; ok {
-		for key, value := range defaults {
-			body[key] = value
-		}
+		mergeMap(body, defaults)
 	}
 	var cache *CacheTelemetry
 	switch provider.Protocol {
@@ -51,7 +42,27 @@ func generationPayload(provider ProviderProfile, req GenerateRequest, model stri
 	default:
 		return nil, nil, fmt.Errorf("generation unsupported for protocol %s", provider.Protocol)
 	}
+	mergeMap(body, provider.PayloadOverrides)
 	return body, cache, nil
+}
+
+func effectiveMaxTokens(provider ProviderProfile, req GenerateRequest, model string) int {
+	limit := req.MaxTokens
+	if limit <= 0 {
+		limit = 1024
+	}
+	for _, candidate := range provider.Models {
+		if candidate.ID == model && candidate.MaxOutputTokens > 0 && limit > candidate.MaxOutputTokens {
+			return candidate.MaxOutputTokens
+		}
+	}
+	return limit
+}
+
+func mergeMap(dst map[string]any, src map[string]any) {
+	for key, value := range src {
+		dst[key] = value
+	}
 }
 
 func chatMessages(req GenerateRequest) []map[string]string {
