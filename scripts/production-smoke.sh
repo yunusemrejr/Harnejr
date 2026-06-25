@@ -30,6 +30,7 @@ done
 curl -fsS "$url/api/doctor" >/dev/null
 curl -fsS "$url/api/providers/probe" >/dev/null
 curl -fsS "$url/api/providers/registry" | grep -q 'providers'
+curl -fsS -X POST "$url/api/providers/route" -H 'content-type: application/json' -d '{"taskType":"review patch","needsReasoning":true,"needsTools":true,"preferred":["stepfun-ai"],"maxCostClass":"cheap"}' | grep -q 'stepfun-step-plan'
 curl -fsS "$url/api/mcp/check" >/dev/null
 curl -fsS -X POST "$url/api/policy/classify-shell" -H 'content-type: application/json' -d '{"command":"sudo rm -rf /"}' | grep -q 'deny'
 curl -fsS -X POST "$url/api/workspaces/prepare" -H 'content-type: application/json' -d "{\"workspaceRoot\":\"$workspace\",\"sessionId\":\"smoke\",\"userRequest\":\"smoke\"}" >/dev/null
