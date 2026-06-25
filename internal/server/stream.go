@@ -10,11 +10,14 @@ import (
 )
 
 type streamRequest struct {
-	ProviderID string `json:"providerId"`
-	Model      string `json:"model"`
-	System     string `json:"system"`
-	Prompt     string `json:"prompt"`
-	MaxTokens  int    `json:"maxTokens"`
+	ProviderID          string `json:"providerId"`
+	Model               string `json:"model"`
+	System              string `json:"system"`
+	Prompt              string `json:"prompt"`
+	MaxTokens           int    `json:"maxTokens"`
+	CacheMode           string `json:"cacheMode,omitempty"`
+	CacheStablePrefix   string `json:"cacheStablePrefix,omitempty"`
+	CacheDynamicContext string `json:"cacheDynamicContext,omitempty"`
 }
 
 func (s *Server) handleLLMStream(w http.ResponseWriter, r *http.Request) {
@@ -42,5 +45,5 @@ func (s *Server) handleLLMStream(w http.ResponseWriter, r *http.Request) {
 		if flusher != nil { flusher.Flush() }
 		return err
 	}
-	providers.Stream(r.Context(), provider, providers.GenerateRequest{Model: req.Model, System: req.System, Prompt: req.Prompt, MaxTokens: req.MaxTokens}, emit)
+	providers.Stream(r.Context(), provider, providers.GenerateRequest{Model: req.Model, System: req.System, Prompt: req.Prompt, MaxTokens: req.MaxTokens, CacheMode: req.CacheMode, CacheStablePrefix: req.CacheStablePrefix, CacheDynamicContext: req.CacheDynamicContext}, emit)
 }
