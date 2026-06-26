@@ -37,6 +37,6 @@ func (s *Server) handleLLMGenerate(w http.ResponseWriter, r *http.Request) {
 	if req.ProviderID != "" {
 		order = append([]string{req.ProviderID}, order...)
 	}
-	result := providers.GenerateWithFallback(r.Context(), registry, order, providers.GenerateRequest{ProviderID: req.ProviderID, Model: req.Model, System: req.System, Prompt: req.Prompt, MaxTokens: req.MaxTokens, AllowBillingChange: req.AllowBillingChange, CacheMode: req.CacheMode, CacheStablePrefix: req.CacheStablePrefix, CacheDynamicContext: req.CacheDynamicContext})
+	result := providers.GenerateWithHealth(r.Context(), registry, s.providerHealthPath(), order, providers.GenerateRequest{ProviderID: req.ProviderID, Model: req.Model, System: req.System, Prompt: req.Prompt, MaxTokens: req.MaxTokens, AllowBillingChange: req.AllowBillingChange, CacheMode: req.CacheMode, CacheStablePrefix: req.CacheStablePrefix, CacheDynamicContext: req.CacheDynamicContext})
 	writeJSON(w, http.StatusOK, result)
 }
