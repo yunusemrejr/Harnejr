@@ -53,7 +53,7 @@ func (s *Server) handleWorkerRun(w http.ResponseWriter, r *http.Request) {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			prompt := req.Task + "\n" + reason
-			out[i] = providers.GenerateWithFallback(r.Context(), registry, []string{providerID}, providers.GenerateRequest{Model: model, Prompt: prompt, MaxTokens: 2048, AllowBillingChange: req.AllowBillingChange})
+			out[i] = providers.GenerateWithHealth(r.Context(), registry, s.providerHealthPath(), []string{providerID}, providers.GenerateRequest{Model: model, Prompt: prompt, MaxTokens: 2048, AllowBillingChange: req.AllowBillingChange})
 		}(index, item.ProviderID, item.Model, item.Reason)
 	}
 	wg.Wait()
