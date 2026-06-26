@@ -31,6 +31,7 @@ type GenerateResult struct {
 	StatusCode            int             `json:"statusCode,omitempty"`
 	LatencyMs             int64           `json:"latencyMs,omitempty"`
 	Tried                 []string        `json:"tried,omitempty"`
+	HealthSkipped         []string        `json:"healthSkipped,omitempty"`
 	Usage                 *UsageMetrics   `json:"usage,omitempty"`
 	Cache                 *CacheTelemetry `json:"cache,omitempty"`
 	ErrorClass            string          `json:"errorClass,omitempty"`
